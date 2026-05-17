@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>无锡车路云项目管理平台原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">WX</div>
+          <div>
+            <div class="brand-title">无锡车路云</div>
+            <div class="brand-subtitle">项目管理平台</div>
+          </div>
+        </div>
+        <nav class="nav" aria-label="主导航">
+          <button class="nav-item active" data-panel="overview">总览</button>
+          <button class="nav-item" data-panel="sites">点位管理</button>
+          <button class="nav-item" data-panel="devices">设备管理</button>
+          <button class="nav-item" data-panel="imports">导入中心</button>
+          <button class="nav-item" data-panel="coordinates">坐标异常</button>
+          <button class="nav-item" data-panel="contracts">合同管理</button>
+          <button class="nav-item" data-panel="warehouse">出入库</button>
+          <button class="nav-item" data-panel="documents">资料管理</button>
+          <button class="nav-item" data-panel="ops">运维管理</button>
+        </nav>
+        <div class="sidebar-note">
+          <span>数据口径</span>
+          <strong>业务页面仅展示 GCJ-02；CGCS2000 仅审计</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>一期项目原型</h1>
+            <p>点位、设备、合同、资料和履约过程的一体化工作台</p>
+          </div>
+          <div class="top-actions">
+            <div class="search">
+              <span>⌕</span>
+              <input id="globalSearch" type="search" placeholder="搜索 NodeID、点位、设备、合同" />
+            </div>
+            <button class="primary-btn" id="openFirstSite">打开重点点位</button>
+          </div>
+        </header>
+
+        <section class="panel active" id="overview">
+          <div class="overview-actions">
+            <div>
+              <h2>项目总览</h2>
+              <p>从总览页直接导入点位库和设备点位分布信息</p>
+            </div>
+            <div class="import-actions">
+              <button class="primary-btn" id="importSiteTable">导入点位管理表</button>
+              <button class="ghost-btn" id="importDeviceTable">导入设备管理表</button>
+            </div>
+          </div>
+
+          <div class="import-panel" id="importPanel" aria-live="polite"></div>
+          <input id="siteImportInput" class="sr-only" type="file" accept=".xlsx,.xls" />
+          <input id="deviceImportInput" class="sr-only" type="file" accept=".xlsx,.xls" />
+
+          <div class="metric-grid">
+            <button class="metric metric-link" data-panel-link="sites">
+              <span>项目点位</span>
+              <strong id="metricSiteTotal">-</strong>
+              <small>进入点位管理</small>
+            </button>
+            <button class="metric metric-link" data-panel-link="devices">
+              <span>设备记录</span>
+              <strong id="metricDeviceRows">-</strong>
+              <small>进入设备管理</small>
+            </button>
+            <button class="metric metric-link warning" id="overviewUnmatchedCard">
+              <span>未匹配设备</span>
+              <strong id="metricUnmatchedRows">-</strong>
+              <small>2447 条待治理</small>
+            </button>
+            <button class="metric metric-link" data-panel-link="contracts">
+              <span>合同流</span>
+              <strong id="metricContractRows">-</strong>
+              <small>天安前向 / 后向合同</small>
+            </button>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="surface">
+              <div class="section-head">
+                <h2>项目进展</h2>
+                <button class="ghost-btn" data-panel-link="sites">查看点位</button>
+              </div>
+              <div class="progress-list" id="statusProgress"></div>
+            </section>
+
+            <section class="surface">
+              <div class="section-head">
+                <h2>合同流风险</h2>
+                <button class="ghost-btn" data-panel-link="contracts">查看合同</button>
+              </div>
+              <div class="contract-strip" id="contractStrip"></div>
+            </section>
+
+            <section class="surface wide">
+              <div class="section-head">
+                <h2>点位地图预览</h2>
+                <div class="legend">
+                  <span><i class="dot district-xishan"></i> 锡山</span>
+                  <span><i class="dot district-xinwu"></i> 新吴</span>
+                  <span><i class="dot district-huishan"></i> 惠山</span>
+                  <span><i class="dot district-liangxi"></i> 梁溪</span>
+                  <span><i class="dot district-binhu"></i> 滨湖</span>
+                </div>
+              </div>
+              <div class="mini-map" id="overviewMap"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="sites">
+          <div class="section-head sticky-head">
+            <div>
+              <h2>点位管理</h2>
+              <p>表格、卡片和地图三种视图共用筛选条件</p>
+            </div>
+            <div class="controls">
+              <select id="districtFilter" aria-label="行政区域筛选"></select>
+              <select id="perceptionFilter" aria-label="感知点位类型筛选"></select>
+              <select id="adaptiveFilter" aria-label="是否自适应点位筛选"></select>
+              <select id="variableLaneFilter" aria-label="是否可变车道路口筛选"></select>
+              <div class="segmented" role="tablist" aria-label="点位视图">
+                <button class="active" data-view="table">表格</button>
+                <button data-view="card">卡片</button>
+                <button data-view="map">地图</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="site-view active" id="tableView">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>NodeID</th>
+                    <th>点位名称</th>
+                    <th>区域</th>
+                    <th>类型</th>
+                    <th>信号机厂商</th>
+                    <th>感知点位类型</th>
+                    <th>自适应</th>
+                    <th>可变车道</th>
+                    <th>GCJ-02 坐标</th>
+                    <th>设备</th>
+                    <th>异常</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="siteRows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="site-view" id="cardView">
+            <div class="site-cards" id="siteCards"></div>
+          </div>
+
+          <div class="site-view" id="mapView">
+            <div class="map-layout">
+              <div class="map-canvas" id="siteMap"></div>
+              <aside class="map-list" id="mapList"></aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="devices">
+          <div class="section-head">
+            <div>
+              <h2>设备管理</h2>
+              <p>按设备类型逐个展示，支持点位、安装位置、供应商、合同和履约状态穿透</p>
+            </div>
+            <button class="ghost-btn" id="showUnmatched">未匹配池</button>
+          </div>
+          <div class="unmatched-panel" id="unmatchedPanel">
+            <div>
+              <strong>未匹配池：2447 条</strong>
+              <span>支持按物料、供应商、合同板块治理到点位、仓库、机房或服务项。</span>
+            </div>
+            <div class="chips">
+              <span>物料治理</span>
+              <span>供应商治理</span>
+              <span>合同板块治理</span>
+              <span>点位 / 仓库 / 机房 / 服务项</span>
+            </div>
+          </div>
+          <div class="table-wrap unmatched-table-wrap" id="unmatchedTableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>治理状态</th>
+                  <th>资产类型</th>
+                  <th>物料/服务</th>
+                  <th>供应商</th>
+                  <th>合同板块</th>
+                  <th>建议去向</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="unmatchedRows"></tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>点位</th>
+                  <th>设备类型</th>
+                  <th>安装位置</th>
+                  <th>物料名称</th>
+                  <th>供应商</th>
+                  <th>后向合同</th>
+                  <th>已送货</th>
+                  <th>已入库</th>
+                  <th>已安装</th>
+                </tr>
+              </thead>
+              <tbody id="deviceRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" id="imports">
+          <div class="section-head">
+            <div>
+              <h2>导入中心</h2>
+              <p>点位管理表、设备管理表、合同和资料导入的预览、校验、确认与报告</p>
+            </div>
+            <div class="import-actions">
+              <button class="primary-btn" data-open-import="sites">导入点位管理表</button>
+              <button class="ghost-btn" data-open-import="devices">导入设备管理表</button>
+            </div>
+          </div>
+          <div class="import-panel" id="importCenterPanel" aria-live="polite"></div>
+          <div class="import-center-grid">
+            <section class="surface">
+              <h3>导入任务</h3>
+              <div class="task-list" id="importTaskList"></div>
+            </section>
+            <section class="surface">
+              <h3>错误行与待补全</h3>
+              <div class="error-list" id="importErrorList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel" id="coordinates">
+          <div class="section-head">
+            <div>
+              <h2>坐标异常</h2>
+              <p>业务页面以 GCJ-02 为准；CGCS2000 仅作为原始数据审计字段保存</p>
+            </div>
+            <button class="ghost-btn" id="reconvertCoordinates">重新转换坐标</button>
+          </div>
+          <div class="coordinate-layout">
+            <div class="map-canvas" id="coordinateMap"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>NodeID</th>
+                    <th>点位名称</th>
+                    <th>行政区域</th>
+                    <th>异常原因</th>
+                    <th>处理建议</th>
+                  </tr>
+                </thead>
+                <tbody id="coordinateRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="contracts">
+          <div class="section-head">
+            <div>
+              <h2>合同管理</h2>
+              <p>合同流图谱、天安前向合同、天安后向合同、设备级合同明细和履约节点</p>
+            </div>
+            <button class="primary-btn">导入合同流</button>
+          </div>
+          <div class="contract-layout">
+            <div class="flow-board" id="flowBoard"></div>
+            <div class="surface contract-detail">
+              <h3>设备级资金与履约</h3>
+              <div class="timeline">
+                <div><span>1</span> 合同签署</div>
+                <div><span>2</span> 到货查验</div>
+                <div><span>3</span> 入库/领料</div>
+                <div><span>4</span> 安装验收</div>
+                <div><span>5</span> 上游回款</div>
+                <div><span>6</span> 后向付款</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="warehouse">
+          <div class="section-head">
+            <h2>出入库管理</h2>
+            <p>一期原型展示送货、入库、领料和安装数量差异</p>
+          </div>
+          <div class="warehouse-grid" id="warehouseGrid"></div>
+        </section>
+
+        <section class="panel" id="documents">
+          <div class="section-head">
+            <div>
+              <h2>资料管理</h2>
+              <p>围绕点位、设备、合同、验收和运维对象归集文档、照片和报告</p>
+            </div>
+            <button class="primary-btn">上传资料</button>
+          </div>
+          <div class="document-grid" id="documentGrid"></div>
+        </section>
+
+        <section class="panel" id="ops">
+          <div class="section-head">
+            <h2>运维管理</h2>
+            <p>从点位档案、设备、合同和工单进入运维闭环</p>
+          </div>
+          <div class="ops-board">
+            <div class="ops-column">
+              <h3>待处理</h3>
+              <p>坐标异常复核、未匹配设备治理、合同设备疑似匹配。</p>
+            </div>
+            <div class="ops-column">
+              <h3>处理中</h3>
+              <p>设备到货差异、开箱问题、安装进度滞后。</p>
+            </div>
+            <div class="ops-column">
+              <h3>已闭环</h3>
+              <p>验收单归档、接线表解析、点位照片绑定。</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <aside class="detail-drawer" id="detailDrawer" aria-hidden="true">
+      <div class="drawer-head">
+        <div>
+          <span id="drawerNodeId">NodeID</span>
+          <h2 id="drawerTitle">点位详情</h2>
+        </div>
+        <div class="drawer-actions">
+          <button class="ghost-btn" id="drawerSave">保存</button>
+          <button class="ghost-btn" id="drawerArchive">一点一档</button>
+          <button class="icon-btn" id="closeDrawer" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-map" id="drawerMap"></div>
+        <div class="detail-tabs">
+          <button class="active" data-detail-tab="base">基础</button>
+          <button data-detail-tab="device">设备</button>
+          <button data-detail-tab="archive">一点一档</button>
+          <button data-detail-tab="contract">合同</button>
+        </div>
+        <div class="detail-pane active" id="detailBase"></div>
+        <div class="detail-pane" id="detailDevice"></div>
+        <div class="detail-pane" id="detailArchive"></div>
+        <div class="detail-pane" id="detailContract"></div>
+      </div>
+    </aside>
+
+    <div class="scrim" id="scrim"></div>
+    <script src="./amap-config.js"></script>
+    <script>
+      if (window.AMAP_CONFIG) {
+        window._AMapSecurityConfig = {
+          securityJsCode: window.AMAP_CONFIG.securityJsCode,
+        };
+        const script = document.createElement("script");
+        script.src = `https://webapi.amap.com/maps?v=2.0&key=${window.AMAP_CONFIG.jsKey}`;
+        script.async = false;
+        document.head.appendChild(script);
+      }
+    </script>
+    <script src="./vendor/xlsx.full.min.js"></script>
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
