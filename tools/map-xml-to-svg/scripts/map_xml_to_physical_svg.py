@@ -238,23 +238,15 @@ def lane_polygon_m(lane: Lane) -> list[tuple[float, float]]:
 
 
 def guided_lane_polygon_m(lane: Lane) -> list[tuple[float, float]]:
-    """Construct visible waiting/guide lane area from guidedLaneWidth/Length.
+    """Do not render guidedLaneWidth/Length as physical waiting areas by default.
 
-    The MAP lane centerline ends near the stop line. guidedLaneWidth and
-    guidedLaneLength describe a downstream guide/waiting area inside the
-    intersection. This is why the north-south straight waiting areas were not
-    visible when only laneTypeAttrVehExt was used.
+    In the Wuxi MAP XML corpus these fields appear on most normal vehicle
+    lanes, often with long values. They are guide/extension metadata, not a
+    reliable physical waiting-area definition. Explicit internal lanes still
+    render through `lane_polygon_m()` when `laneTypeAttrVehExt` is present or
+    laneID >= 240.
     """
-    if len(lane.points_m) < 2 or lane.guided_width_m <= 0 or lane.guided_length_m <= 0:
-        return []
-    hdg = heading(lane.points_m)
-    start = lane.stop_lines[0].point_m if lane.stop_lines else lane.points_m[-1]
-    end = (start[0] + math.cos(hdg) * lane.guided_length_m, start[1] + math.sin(hdg) * lane.guided_length_m)
-    center = [start, end]
-    half = max(lane.guided_width_m / 2.0, 0.75)
-    left = offset_polyline(center, half)
-    right = offset_polyline(center, -half)
-    return left + list(reversed(right))
+    return []
 
 
 def heading(points):
@@ -387,6 +379,11 @@ def downstream_node_for_lane(lane: Lane, lane_by_id: dict[str, Lane], current_no
     return remote
 
 
+def is_temporary_node_id(node_id: str) -> bool:
+    """Short numeric IDs indicate upstream/downstream NodeIDs not finalized yet."""
+    return bool(node_id and node_id.isdigit() and len(node_id) < 5)
+
+
 def arrow_rear_label_position(lane: Lane, t: Transform, distance_behind_arrow_m: float = 12.0) -> tuple[tuple[float, float], float]:
     """Place label at fixed distance behind arrow center, aligned to lane."""
     c = arrow_center(lane, t, 7.0)
@@ -480,6 +477,62 @@ def svg_arrow(center, angle, kind, scale, color=LANE_WHITE) -> str:
     return svg_arrow(center, angle, "straight", scale, color)
 
 
+def crosswalk_exit_pedestrian(lane: Lane, t: Transform, approach_heading: Optional[float]) -> str:
+    """Place a pedestrian icon on crosswalk centerline toward the exit side."""
+    if len(lane.points_m) < 2:
+        return ""
+    center = point_along_polyline(lane.points_m, 0.5)
+    tangent = unit((lane.points_m[-1][0] - lane.points_m[0][0], lane.points_m[-1][1] - lane.points_m[0][1]))
+    if approach_heading is not None:
+        # The MAP lane beside the crosswalk is the intersection approach.
+        # The corresponding exit side is on the left side of the lane travel direction.
+        exit_vec = (-math.sin(approach_heading), math.cos(approach_heading))
+        if tangent[0] * exit_vec[0] + tangent[1] * exit_vec[1] < 0:
+            tangent = (-tangent[0], -tangent[1])
+    else:
+        # Fallback: use the crosswalk side farther from the intersection center.
+        a, b = lane.points_m[0], lane.points_m[-1]
+        tangent = unit((b[0] - a[0], b[1] - a[1]))
+        if math.hypot(a[0], a[1]) > math.hypot(b[0], b[1]):
+            tangent = (-tangent[0], -tangent[1])
+    offset_m = 5.0
+    x, y = t((center[0] + tangent[0] * offset_m, center[1] + tangent[1] * offset_m))
+    arrow_like_scale = max(.42, min(.95, t.px(1.0) / 7.5))
+    size = max(13.0, min(24.0, 34 * arrow_like_scale * 0.62))
+    stroke = max(1.7, size * 0.14)
+    head_r = size * 0.16
+    body = size * 0.26
+    leg = size * 0.30
+    arm = size * 0.22
+    return (
+        f'<g data-layer="crosswalk-pedestrian" data-lane="{html.escape(lane.lane_id)}" '
+        f'transform="translate({fmt(x)} {fmt(y)})" opacity="0.70" '
+        f'stroke="{LANE_WHITE}" stroke-width="{fmt(stroke)}" stroke-linecap="round" '
+        f'stroke-linejoin="round" fill="none">'
+        f'<circle cx="0" cy="{fmt(-body - head_r)}" r="{fmt(head_r)}" fill="{LANE_WHITE}" stroke="none"/>'
+        f'<path d="M 0 {fmt(-body)} L 0 {fmt(body * .15)}"/>'
+        f'<path d="M {fmt(-arm)} {fmt(-body * .42)} L {fmt(arm)} {fmt(-body * .05)}"/>'
+        f'<path d="M 0 {fmt(body * .15)} L {fmt(-leg)} {fmt(leg)}"/>'
+        f'<path d="M 0 {fmt(body * .15)} L {fmt(leg)} {fmt(leg * .82)}"/>'
+        f'</g>'
+    )
+
+
+def link_straight_heading(link: Link) -> Optional[float]:
+    straight_lanes = [
+        lane for lane in link.lanes
+        if not lane.is_crosswalk and maneuver_kind(lane.maneuver) == "straight" and len(lane.points_m) >= 2
+    ]
+    if straight_lanes:
+        # Use the median-ish straight lane when several through lanes exist.
+        lane = straight_lanes[len(straight_lanes) // 2]
+        return heading(lane.points_m)
+    vehicle_lanes = [lane for lane in link.lanes if not lane.is_crosswalk and len(lane.points_m) >= 2]
+    if vehicle_lanes:
+        return heading(vehicle_lanes[len(vehicle_lanes) // 2].points_m)
+    return None
+
+
 def render_svg(m: MapData, out: Path, size=1200, radius_m=82, rotation_deg=0.0, title=True):
     allpts = [(0.0, 0.0)]
     for link in m.links:
@@ -527,6 +580,16 @@ def render_svg(m: MapData, out: Path, size=1200, radius_m=82, rotation_deg=0.0, 
                         a=(cx-nx*width_px*.46, cy-ny*width_px*.46); b=(cx+nx*width_px*.46, cy+ny*width_px*.46)
                         parts.append(f'<line x1="{fmt(a[0])}" y1="{fmt(a[1])}" x2="{fmt(b[0])}" y2="{fmt(b[1])}" stroke="{CROSSWALK_WHITE}" stroke-width="{fmt(stripe_w)}" opacity="0.42"/>')
                     k+=1; d+=step
+    parts.append('</g>')
+
+    parts.append('<g id="crosswalk-pedestrians">')
+    for link in m.links:
+        exit_heading = link_straight_heading(link)
+        for lane in link.lanes:
+            if lane.is_crosswalk:
+                icon = crosswalk_exit_pedestrian(lane, t, exit_heading)
+                if icon:
+                    parts.append(icon)
     parts.append('</g>')
 
     parts.append('<g id="lane-polygons">')
@@ -585,14 +648,22 @@ def render_svg(m: MapData, out: Path, size=1200, radius_m=82, rotation_deg=0.0, 
         for lane in link.lanes:
             if lane.is_crosswalk or len(lane.points_m) < 2:
                 continue
+            # Internal guide/waiting lanes are short physical storage/guide
+            # areas inside the intersection. Road-name/downstream-NodeID
+            # labels are useful for approach lanes, but clutter and mislead
+            # inside waiting areas, so keep waiting lanes unlabeled.
+            if lane.is_guide_or_waiting:
+                continue
             # Label only lanes with physical arrow semantics.
             kind = maneuver_kind(lane.maneuver)
-            if not lane.maneuver and not lane.is_guide_or_waiting:
+            if not lane.maneuver:
                 continue
             downstream = downstream_node_for_lane(lane, lane_by_id, m.node_id)
             pos, deg = arrow_rear_label_position(lane, t, 12.0)
             label = f'{link.name} → {downstream}'
-            parts.append(f'<text data-layer="lane-arrow-rear-label" data-lane="{html.escape(lane.lane_id)}" data-road="{html.escape(link.name)}" data-downstream-node="{html.escape(downstream)}" x="{fmt(pos[0])}" y="{fmt(pos[1])}" transform="rotate({fmt(deg)} {fmt(pos[0])} {fmt(pos[1])})" text-anchor="middle" dominant-baseline="central" fill="{LANE_WHITE}" font-family="Arial, PingFang SC, sans-serif" font-size="{fmt(max(10,t.px(1.15)))}" font-weight="700" opacity="0.82">{html.escape(label)}</text>')
+            temporary_node = is_temporary_node_id(downstream)
+            label_color = "#ff4d4f" if temporary_node else LANE_WHITE
+            parts.append(f'<text data-layer="lane-arrow-rear-label" data-lane="{html.escape(lane.lane_id)}" data-road="{html.escape(link.name)}" data-downstream-node="{html.escape(downstream)}" data-temporary-node="{str(temporary_node).lower()}" x="{fmt(pos[0])}" y="{fmt(pos[1])}" transform="rotate({fmt(deg)} {fmt(pos[0])} {fmt(pos[1])})" text-anchor="middle" dominant-baseline="central" fill="{label_color}" font-family="Arial, PingFang SC, sans-serif" font-size="{fmt(max(10,t.px(1.15)))}" font-weight="700" opacity="0.82">{html.escape(label)}</text>')
     parts.append('</g>')
 
     parts.append('<g id="phase-labels">')

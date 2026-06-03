@@ -25,7 +25,8 @@ tools/map-xml-to-svg/examples/MAP_24158_惠育路-政和大道-physical.svg
 - 车道由 `Lane.points + laneWidth` 生成 polygon。
 - 停止线宽度等于对应车道宽度。
 - 人行横道图层放在车道线后面，并使用较淡透明度。
-- `guidedLaneWidth / guidedLaneLength` 用于生成直行待行区或导向区。
+- `guidedLaneWidth / guidedLaneLength` 仅作为协议属性保留，不默认渲染为物理待行区；明确内部导向车道仍通过 `laneTypeAttrVehExt` 或 `laneID >= 240` 渲染。
+- 待行区/内部导向车道不显示道路名称和下游 NodeID，避免在路口内部短车道上造成信息拥挤或语义误导。
 - `connectsTo` 的 `connectingLane/lane` 只在当前 Link 内追踪，避免重复 laneID 跨进口串联。
 
 ## 后续接入建议
