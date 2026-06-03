@@ -1,0 +1,78 @@
+#!/bin/bash
+set -u
+
+PROJECT_DIR="/Users/tt2000/Documents/天安智联/AI/项目管理工具包/无锡车路云项目管理"
+APP_URL="http://127.0.0.1:4173/"
+HEALTH_URL="http://127.0.0.1:4173/api/health"
+SERVICE_LABEL="com.tianan.wuxi-roadside-prototype"
+SERVICE_DIR="$HOME/Library/Application Support/wuxi-roadside-prototype"
+LOG_DIR="$SERVICE_DIR/logs"
+LOG_FILE="$LOG_DIR/repair-app.log"
+
+mkdir -p "$LOG_DIR"
+
+log() {
+  printf "[%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG_FILE"
+}
+
+dialog() {
+  /usr/bin/osascript -e "display dialog \"$1\" buttons {\"知道了\"} default button \"知道了\" with title \"无锡车路云服务修复\"" >/dev/null 2>&1 || true
+}
+
+notify() {
+  /usr/bin/osascript -e "display notification \"$1\" with title \"无锡车路云服务修复\"" >/dev/null 2>&1 || true
+}
+
+healthy() {
+  /usr/bin/curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1
+}
+
+open_app() {
+  /usr/bin/open "$APP_URL" >/dev/null 2>&1 || true
+}
+
+start_launch_agent() {
+  log "Installing LaunchAgent"
+  /bin/bash "$PROJECT_DIR/prototype/install-local-service.sh" >> "$LOG_FILE" 2>&1
+  sleep 2
+  /bin/launchctl kickstart -k "gui/$(id -u)/$SERVICE_LABEL" >> "$LOG_FILE" 2>&1 || true
+  sleep 2
+}
+
+start_fallback_node() {
+  log "Starting fallback node process"
+  /usr/bin/nohup /opt/homebrew/bin/node "$PROJECT_DIR/prototype/server.js" >> "$LOG_DIR/manual-service.out.log" 2>> "$LOG_DIR/manual-service.err.log" &
+  sleep 2
+}
+
+log "Repair app started"
+
+if healthy; then
+  log "Health check already OK"
+  notify "服务已正常运行，正在打开应用主页。"
+  open_app
+  exit 0
+fi
+
+notify "检测到本地服务未运行，正在自动修复。"
+start_launch_agent
+
+if healthy; then
+  log "Health check OK after LaunchAgent restart"
+  notify "服务已恢复，正在打开应用主页。"
+  open_app
+  exit 0
+fi
+
+start_fallback_node
+
+if healthy; then
+  log "Health check OK after fallback node start"
+  notify "服务已用兜底方式恢复，正在打开应用主页。"
+  open_app
+  exit 0
+fi
+
+log "Repair failed"
+dialog "自动修复失败。请把日志文件发给维护人员：$LOG_FILE"
+exit 1

@@ -3,14 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>无锡车路云项目管理平台原型</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>无锡车路云一体化项目管理系统</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">WX</div>
+          <div class="brand-mark">
+            <img src="./assets/tian-logo.png" alt="天安智联 LOGO" />
+          </div>
           <div>
             <div class="brand-title">无锡车路云</div>
             <div class="brand-subtitle">项目管理平台</div>
@@ -35,15 +38,16 @@
 
       <main class="workspace">
         <header class="topbar">
-          <div>
-            <h1>一期项目原型</h1>
-            <p>点位、设备、合同、资料和履约过程的一体化工作台</p>
+          <div class="page-heading">
+            <h1 id="pageTitle">项目总览</h1>
+            <p id="pageSubtitle">从总览页直接导入点位库和设备安装位置表</p>
           </div>
           <div class="top-actions">
             <div class="search">
               <span>⌕</span>
               <input id="globalSearch" type="search" placeholder="搜索 NodeID、点位、设备、合同" />
             </div>
+            <button class="ghost-btn theme-toggle" id="visualThemeToggle" type="button" aria-pressed="false">大屏风格</button>
             <button class="primary-btn" id="openFirstSite">打开重点点位</button>
           </div>
         </header>
@@ -52,7 +56,7 @@
           <div class="overview-actions">
             <div>
               <h2>项目总览</h2>
-              <p>从总览页直接导入点位库和设备点位分布信息</p>
+              <p>从总览页直接导入点位库和设备安装位置表</p>
             </div>
             <div class="import-actions">
               <button class="primary-btn" id="importSiteTable">导入点位管理表</button>
@@ -63,6 +67,7 @@
           <div class="import-panel" id="importPanel" aria-live="polite"></div>
           <input id="siteImportInput" class="sr-only" type="file" accept=".xlsx,.xls" />
           <input id="deviceImportInput" class="sr-only" type="file" accept=".xlsx,.xls" />
+          <input id="roadsideStatusImportInput" class="sr-only" type="file" accept=".xlsx,.xls" />
 
           <div class="metric-grid">
             <button class="metric metric-link" data-panel-link="sites">
@@ -235,11 +240,12 @@
           <div class="section-head">
             <div>
               <h2>导入中心</h2>
-              <p>点位管理表、设备管理表、合同和资料导入的预览、校验、确认与报告</p>
+              <p>点位管理表、设备管理表、路侧设备状态表、合同和资料导入的预览、校验、确认与报告</p>
             </div>
             <div class="import-actions">
               <button class="primary-btn" data-open-import="sites">导入点位管理表</button>
               <button class="ghost-btn" data-open-import="devices">导入设备管理表</button>
+              <button class="ghost-btn" data-open-import="roadsideStatus">导入路侧设备运行状态表</button>
             </div>
           </div>
           <div class="import-panel" id="importCenterPanel" aria-live="polite"></div>
@@ -326,22 +332,91 @@
         </section>
 
         <section class="panel" id="ops">
-          <div class="section-head">
-            <h2>运维管理</h2>
-            <p>从点位档案、设备、合同和工单进入运维闭环</p>
+          <div class="section-head ops-page-head">
+            <div class="ops-title-line">
+              <h2>运维管理</h2>
+              <p>每日路侧设备运行状态快照、异常统计、离线设备地图和历史日历</p>
+              <span class="persistence-status" id="opsPersistenceStatus">正在检测本地文件持久化</span>
+            </div>
+            <div class="import-actions">
+              <button class="primary-btn" data-open-import="roadsideStatus">导入路侧设备运行状态表</button>
+              <button class="ghost-btn" id="exportAbnormalList">导出异常设备列表</button>
+              <button class="ghost-btn" id="exportAbnormalStats">导出异常统计表</button>
+            </div>
           </div>
-          <div class="ops-board">
-            <div class="ops-column">
-              <h3>待处理</h3>
-              <p>坐标异常复核、未匹配设备治理、合同设备疑似匹配。</p>
+          <div class="ops-summary-grid" id="opsSummaryGrid"></div>
+          <div class="ops-layout">
+            <section class="surface">
+              <div class="section-head compact-head">
+                <div>
+                  <h3>异常日历</h3>
+                  <span id="opsCurrentDate"></span>
+                </div>
+                <div class="calendar-toolbar">
+                  <button class="ghost-btn" data-open-import="roadsideStatus">导入路侧设备运行状态表</button>
+                  <button class="icon-btn" data-ops-calendar-shift="-1">‹</button>
+                  <strong id="opsCalendarTitle"></strong>
+                  <button class="icon-btn" data-ops-calendar-shift="1">›</button>
+                  <button class="ghost-btn" data-ops-calendar-mode="month">月</button>
+                  <button class="ghost-btn" data-ops-calendar-mode="year">年</button>
+                </div>
+              </div>
+              <div class="import-panel ops-import-panel" id="opsImportPanel" aria-live="polite"></div>
+              <div class="ops-weekdays" id="opsWeekdays"></div>
+              <div class="ops-calendar" id="opsCalendar"></div>
+            </section>
+            <section class="surface ops-map-panel">
+              <div class="section-head compact-head">
+                <h3>离线/异常设备点位地图</h3>
+                <span>异常设备红色闪烁</span>
+              </div>
+              <div class="map-canvas" id="opsDeviceMap"></div>
+            </section>
+          </div>
+          <section class="surface ops-trend-card" id="opsTrendCard" aria-live="polite"></section>
+          <div class="surface">
+            <div class="section-head compact-head">
+              <h3>按设备类型统计</h3>
+              <span>仅统计已启用设备</span>
             </div>
-            <div class="ops-column">
-              <h3>处理中</h3>
-              <p>设备到货差异、开箱问题、安装进度滞后。</p>
+            <div class="table-wrap ops-stats-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>设备类型</th>
+                    <th>在线数量</th>
+                    <th>在线占比</th>
+                    <th>离线数量</th>
+                    <th>离线占比</th>
+                    <th>异常数量</th>
+                    <th>异常占比</th>
+                    <th>合计</th>
+                  </tr>
+                </thead>
+                <tbody id="opsStatsRows"></tbody>
+              </table>
             </div>
-            <div class="ops-column">
-              <h3>已闭环</h3>
-              <p>验收单归档、接线表解析、点位照片绑定。</p>
+          </div>
+          <div class="surface">
+            <div class="section-head compact-head">
+              <h3>路侧设备运行状态异常详表</h3>
+              <span id="opsDetailCount"></span>
+            </div>
+            <div class="table-wrap ops-detail-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>序号</th>
+                    <th>点位/位置</th>
+                    <th>区域</th>
+                    <th>设备类型</th>
+                    <th>厂商</th>
+                    <th>设备编号</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody id="opsDeviceRows"></tbody>
+              </table>
             </div>
           </div>
         </section>
@@ -385,11 +460,13 @@
         const script = document.createElement("script");
         script.src = `https://webapi.amap.com/maps?v=2.0&key=${window.AMAP_CONFIG.jsKey}`;
         script.async = false;
+        script.onload = () => window.dispatchEvent(new Event("amap-ready"));
         document.head.appendChild(script);
       }
     </script>
     <script src="./vendor/xlsx.full.min.js"></script>
     <script src="./data.js"></script>
+    <script src="./roadside-status.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

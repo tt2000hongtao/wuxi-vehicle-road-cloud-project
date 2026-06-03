@@ -10,11 +10,27 @@ const state = {
   importType: null,
   importTask: null,
   importHistory: [],
+  opsDate: "2026-05-18",
+  opsCalendarMode: "month",
+  opsCalendarCursor: "2026-05",
+  visualTheme: "macos",
 };
 
 const data = window.PROTOTYPE_DATA;
 const sites = data.sites;
 const contracts = data.contracts;
+const roadsideStatusState = {
+  currentDate: window.ROADSIDE_STATUS_DATA?.importDate || "2026-05-18",
+  currentRows: normalizeRoadsideStatusRows(window.ROADSIDE_STATUS_DATA?.rows || []),
+  archives: [],
+};
+const ROADSIDE_STATUS_STORAGE_KEY = "wuxi-roadside-status-state-v1";
+const VISUAL_THEME_STORAGE_KEY = "wuxi-project-visual-theme-v1";
+const visualThemes = ["macos", "command", "trajectory"];
+const persistenceState = {
+  backendAvailable: false,
+  lastSavedAt: null,
+};
 const unmatchedItems = buildUnmatchedItems();
 const documentBuckets = [
   ["勘察资料", "点位踏勘、杆件条件、机房资源", 128],
@@ -40,9 +56,15 @@ const importTemplates = {
   },
   devices: {
     title: "导入设备管理表",
-    purpose: "用于导入设备点位分布信息，并按 NodeID 关联到点位。",
+    purpose: "用于导入设备安装位置表，形成设备安装台账并按 NodeID 关联到点位。该表不是路侧设备运行状态表。",
     template: "/Users/tt2000/Documents/天安智联/AI/项目管理工具包/Project Data/设备安装位置表.xlsx",
     result: "生成设备安装台账；未匹配记录进入 2447 条未匹配池，支持治理到点位、仓库、机房或服务项。",
+  },
+  roadsideStatus: {
+    title: "导入路侧设备运行状态表",
+    purpose: "用于导入每日路侧设备运行状态快照，来源为运维状态数据文件，不读取设备安装位置表。当日导入后，原当前状态表进入历史档案库，新文件成为当前路侧设备状态表。",
+    template: "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/11.运维/设备数据0518(1).xlsx",
+    result: "生成运维统计、路侧设备状态详表、异常日历、离线设备点位地图和当日异常导出清单。",
   },
 };
 const importFieldMaps = {
@@ -68,6 +90,17 @@ const importFieldMaps = {
     ["品牌型号", "brand_model", "规格型号"],
     ["送货/入库/领料/安装数量", "quantity_fields", "履约进度"],
   ],
+  roadsideStatus: [
+    ["设备编号", "device_id", "路侧设备唯一编号"],
+    ["产品名称", "product_name", "设备产品名称"],
+    ["设备类型名称", "device_type_name", "按设备类型统计"],
+    ["设备位置", "device_position", "点位或道路位置"],
+    ["经度/纬度", "longitude_gcj02 / latitude_gcj02", "离线设备地图落点"],
+    ["路口ID", "intersection_id", "点位关联辅助键"],
+    ["区域", "district", "行政区域"],
+    ["状态", "status", "在线/离线/异常"],
+    ["启用状态", "enabled_status", "仅启用设备纳入统计"],
+  ],
 };
 const districtClassMap = {
   锡山: "district-xishan",
@@ -80,6 +113,17 @@ const districtClassMap = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const pageHeaders = {
+  overview: ["项目总览", "从总览页直接导入点位库和设备安装位置表"],
+  sites: ["点位管理", "表格、卡片和地图三种视图共用筛选条件"],
+  devices: ["设备管理", "按设备类型逐个展示，支持点位、安装位置、供应商、合同和履约状态穿透"],
+  imports: ["导入中心", "点位管理表、设备管理表、路侧设备状态表、合同和资料导入的预览、校验、确认与报告"],
+  coordinates: ["坐标异常", "业务页面以 GCJ-02 为准；CGCS2000 仅作为原始数据审计字段保存"],
+  contracts: ["合同管理", "合同流图谱、天安前向合同、天安后向合同、设备级合同明细和履约节点"],
+  warehouse: ["出入库管理", "一期原型展示送货、入库、领料和安装数量差异"],
+  documents: ["资料管理", "围绕点位、设备、合同、验收和运维对象归集文档、照片和报告"],
+  ops: ["运维管理", "每日路侧设备运行状态快照、异常统计、离线设备地图和历史日历"],
+};
 
 function buildUnmatchedItems() {
   const suppliers = ["无锡市工业设备安装有限公司", "江苏移动", "中信科", "车联网集团", "万集科技", "华通"];
@@ -161,7 +205,14 @@ function issueText(site) {
 }
 
 function importPanelElement() {
+  if (state.panel === "ops" && $("#opsImportPanel")) return $("#opsImportPanel");
   return state.panel === "imports" && $("#importCenterPanel") ? $("#importCenterPanel") : $("#importPanel");
+}
+
+function closeImportPanel(panel = importPanelElement()) {
+  if (!panel) return;
+  panel.innerHTML = "";
+  panel.classList.remove("open");
 }
 
 function filteredSites() {
@@ -196,8 +247,60 @@ function setPanel(panelId) {
   state.panel = panelId;
   $$(".panel").forEach((panel) => panel.classList.toggle("active", panel.id === panelId));
   $$(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.panel === panelId));
+  renderPageHeader();
+  if (panelId === "overview") requestAnimationFrame(renderOverviewMap);
   if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => renderMap($("#siteMap"), filteredSites()));
   if (panelId === "coordinates") requestAnimationFrame(renderCoordinateIssues);
+  if (panelId === "ops") requestAnimationFrame(renderOps);
+}
+
+function renderPageHeader() {
+  const [title, subtitle] = pageHeaders[state.panel] || pageHeaders.overview;
+  $("#pageTitle").textContent = title;
+  $("#pageSubtitle").textContent = subtitle;
+}
+
+function loadVisualTheme() {
+  try {
+    const saved = localStorage.getItem(VISUAL_THEME_STORAGE_KEY);
+    return visualThemes.includes(saved) ? saved : "macos";
+  } catch {
+    return "macos";
+  }
+}
+
+function saveVisualTheme(theme) {
+  try {
+    localStorage.setItem(VISUAL_THEME_STORAGE_KEY, theme);
+  } catch {
+    // Storage can be unavailable in restricted browser contexts; the live toggle still works.
+  }
+}
+
+function applyVisualTheme(theme = state.visualTheme) {
+  state.visualTheme = visualThemes.includes(theme) ? theme : "macos";
+  document.body.dataset.visualTheme = state.visualTheme;
+  const toggle = $("#visualThemeToggle");
+  if (!toggle) return;
+  const themeLabels = {
+    macos: "大屏风格",
+    command: "轨迹风格",
+    trajectory: "MacOS 风格",
+  };
+  const themeTitles = {
+    macos: "切换为原来的大屏渲染风格",
+    command: "切换为轨迹实时指标风格",
+    trajectory: "切换为跟随系统外观的 MacOS 风格",
+  };
+  toggle.textContent = themeLabels[state.visualTheme];
+  toggle.setAttribute("aria-pressed", String(state.visualTheme !== "macos"));
+  toggle.title = themeTitles[state.visualTheme];
+}
+
+function toggleVisualTheme() {
+  const currentIndex = visualThemes.indexOf(state.visualTheme);
+  applyVisualTheme(visualThemes[(currentIndex + 1) % visualThemes.length]);
+  saveVisualTheme(state.visualTheme);
 }
 
 function renderMetrics() {
@@ -283,13 +386,33 @@ function showImportPanel(type) {
 }
 
 function expectedFileName(type) {
-  return type === "sites" ? "点位管理表-无锡车路云.xlsx" : "设备安装位置表.xlsx";
+  if (type === "sites") return "点位管理表-无锡车路云.xlsx";
+  if (type === "roadsideStatus") return "设备数据0518(1).xlsx";
+  return "设备安装位置表.xlsx";
+}
+
+function importInputForType(type) {
+  if (type === "sites") return $("#siteImportInput");
+  if (type === "roadsideStatus") return $("#roadsideStatusImportInput");
+  return $("#deviceImportInput");
 }
 
 function fileLooksLikeTemplate(type, fileName) {
   const normalized = fileName.replace(/\s+/g, "");
   if (type === "sites") return normalized.includes("点位管理表") && normalized.endsWith(".xlsx");
+  if (type === "roadsideStatus") return normalized.includes("设备数据") && normalized.endsWith(".xlsx");
   return normalized.includes("设备安装位置") && normalized.endsWith(".xlsx");
+}
+
+function rowHasAny(row, keys) {
+  return keys.some((key) => Object.prototype.hasOwnProperty.call(row, key) && toText(row[key]));
+}
+
+function isRoadsideStatusSourceRow(row) {
+  const hasIdentity = rowHasAny(row, ["设备编号", "产品名称", "设备类型名称", "设备类型编码"]);
+  const hasOpsStatus = rowHasAny(row, ["状态", "在线状态", "启用状态", "是否启用"]);
+  const hasLocation = rowHasAny(row, ["经度", "纬度", "路口ID", "设备位置", "关联路口"]);
+  return hasIdentity && hasOpsStatus && hasLocation;
 }
 
 function toText(value) {
@@ -362,6 +485,117 @@ function wgs84ToGcj02(lng, lat) {
   dLat = (dLat * 180) / (((a * (1 - ee)) / (magic * sqrtMagic)) * Math.PI);
   dLng = (dLng * 180) / ((a / sqrtMagic) * Math.cos(radLat) * Math.PI);
   return { lng: lng + dLng, lat: lat + dLat, valid: true };
+}
+
+function normalizeRoadsideStatusDevice(device) {
+  if (!device) return device;
+  if (device.coordinateConvertMethod) return device;
+  const rawLng = toNumber(device.lngCgcs ?? device.rawLng ?? device.lng);
+  const rawLat = toNumber(device.latCgcs ?? device.rawLat ?? device.lat);
+  const converted = wgs84ToGcj02(rawLng, rawLat);
+  return {
+    ...device,
+    lngCgcs: rawLng,
+    latCgcs: rawLat,
+    lng: converted.lng || rawLng,
+    lat: converted.lat || rawLat,
+    lngGcj: converted.lng || rawLng,
+    latGcj: converted.lat || rawLat,
+    coordinateConvertMethod: "cgcs2000_as_wgs84_to_gcj02",
+    coordinateConvertStatus: converted.valid ? "success" : "failed",
+  };
+}
+
+function normalizeRoadsideStatusRows(rows) {
+  return (rows || []).map(normalizeRoadsideStatusDevice);
+}
+
+function applySavedRoadsideStatusState(saved) {
+  if (!saved || !Array.isArray(saved.currentRows) || !Array.isArray(saved.archives)) return false;
+  roadsideStatusState.currentDate = saved.currentDate || roadsideStatusState.currentDate;
+  roadsideStatusState.currentRows = normalizeRoadsideStatusRows(saved.currentRows);
+  roadsideStatusState.archives = saved.archives
+    .filter((item) => item?.importDate && Array.isArray(item.rows))
+    .map((item) => ({
+      ...item,
+      rows: normalizeRoadsideStatusRows(item.rows),
+    }));
+  state.opsDate = roadsideStatusState.currentDate;
+  state.opsCalendarCursor = state.opsDate.slice(0, 7);
+  return true;
+}
+
+function roadsideStatusStatePayload() {
+  return {
+    currentDate: roadsideStatusState.currentDate,
+    currentRows: roadsideStatusState.currentRows,
+    archives: roadsideStatusState.archives,
+  };
+}
+
+function setPersistenceStatus(backendAvailable, lastSavedAt = persistenceState.lastSavedAt) {
+  persistenceState.backendAvailable = backendAvailable;
+  persistenceState.lastSavedAt = lastSavedAt;
+  renderPersistenceStatus();
+}
+
+function renderPersistenceStatus() {
+  const target = $("#opsPersistenceStatus");
+  if (!target) return;
+  const connected = persistenceState.backendAvailable;
+  target.classList.toggle("connected", connected);
+  target.classList.toggle("disconnected", !connected);
+  target.textContent = connected
+    ? `本地文件持久化已连接${persistenceState.lastSavedAt ? ` · ${persistenceState.lastSavedAt}` : ""}`
+    : "本地文件持久化未连接，当前只能暂存到浏览器缓存";
+}
+
+async function loadRoadsideStatusState() {
+  try {
+    const response = await fetch("/api/roadside-status-state", { cache: "no-store" });
+    if (response.ok) {
+      const saved = await response.json();
+      if (applySavedRoadsideStatusState(saved)) {
+        setPersistenceStatus(true, saved.updatedAt ? new Date(saved.updatedAt).toLocaleString("zh-CN", { hour12: false }) : null);
+        return;
+      }
+    }
+  } catch (error) {
+    console.info("Roadside status file backend unavailable, using localStorage fallback.");
+  }
+  setPersistenceStatus(false);
+  try {
+    const raw = window.localStorage?.getItem(ROADSIDE_STATUS_STORAGE_KEY);
+    if (!raw) return;
+    applySavedRoadsideStatusState(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Roadside status localStorage restore failed.", error);
+  }
+}
+
+async function saveRoadsideStatusState() {
+  const payload = roadsideStatusStatePayload();
+  let backendSaved = false;
+  try {
+    const response = await fetch("/api/roadside-status-state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    backendSaved = true;
+    setPersistenceStatus(true, result.updatedAt ? new Date(result.updatedAt).toLocaleString("zh-CN", { hour12: false }) : new Date().toLocaleString("zh-CN", { hour12: false }));
+  } catch (error) {
+    console.info("Roadside status file backend unavailable, saved to localStorage only.");
+    setPersistenceStatus(false);
+  }
+  try {
+    window.localStorage?.setItem(ROADSIDE_STATUS_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Roadside status localStorage save failed.", error);
+  }
+  return backendSaved;
 }
 
 function readWorkbookFile(file) {
@@ -443,10 +677,52 @@ function parseDeviceRow(row) {
   };
 }
 
+function parseRoadsideStatusRow(row, index) {
+  const rawLng = toNumber(pick(row, ["经度", "CGCS2000 经度", "原始经度"]));
+  const rawLat = toNumber(pick(row, ["纬度", "CGCS2000 纬度", "原始纬度"]));
+  const hasGcj = toText(pick(row, ["GCJ-02 经度", "高德展示经度"])) && toText(pick(row, ["GCJ-02 纬度", "高德展示纬度"]));
+  const gcjLng = toNumber(pick(row, ["GCJ-02 经度", "高德展示经度"]));
+  const gcjLat = toNumber(pick(row, ["GCJ-02 纬度", "高德展示纬度"]));
+  const converted = hasGcj ? { lng: gcjLng, lat: gcjLat, valid: Boolean(gcjLng && gcjLat) } : wgs84ToGcj02(rawLng, rawLat);
+  return {
+    deviceId: toText(pick(row, ["设备编号", "device_id"])) || `RS-${index + 1}`,
+    productName: toText(pick(row, ["产品名称", "设备名称"])),
+    vendorCode: toText(pick(row, ["厂商编码"])),
+    vendorName: toText(pick(row, ["厂商名称", "供应商", "厂商"])),
+    deviceTypeCode: toText(pick(row, ["设备类型编码"])),
+    deviceTypeName: toText(pick(row, ["设备类型名称", "设备类型"])),
+    nodeType: toText(pick(row, ["节点类型"])),
+    serialNo: toText(pick(row, ["设备序列号", "序列号"])),
+    devicePosition: toText(pick(row, ["设备位置", "位置"])),
+    lngCgcs: rawLng,
+    latCgcs: rawLat,
+    lng: converted.lng || rawLng,
+    lat: converted.lat || rawLat,
+    lngGcj: converted.lng || rawLng,
+    latGcj: converted.lat || rawLat,
+    coordinateConvertMethod: hasGcj ? "source_gcj02" : "cgcs2000_as_wgs84_to_gcj02",
+    coordinateConvertStatus: converted.valid ? "success" : "failed",
+    intersectionId: toText(pick(row, ["路口ID", "节点编号"])),
+    intersectionType: toText(pick(row, ["路口类型"])),
+    area: normalizeDistrict(pick(row, ["区域"])),
+    relatedIntersection: toText(pick(row, ["关联路口"])),
+    ipAddress: toText(pick(row, ["IP地址", "IP"])),
+    purpose: toText(pick(row, ["设备用途"])),
+    ownerOrg: toText(pick(row, ["归属单位"])),
+    opsOrg: toText(pick(row, ["运维单位"])),
+    status: toText(pick(row, ["状态", "在线状态"])) || "未知",
+    installPosition: "",
+    policeDeviceId: toText(pick(row, ["设备编号(交警)", "交警设备编号"])),
+    enabledStatus: toText(pick(row, ["启用状态", "是否启用"])) || "未标注",
+    sourceRow: index + 2,
+  };
+}
+
 async function createImportTaskFromWorkbook(type, file) {
   const workbook = await readWorkbookFile(file);
   if (type === "sites") return createSiteImportTask(file, workbook);
-  return createDeviceImportTask(file, workbook);
+  if (type === "devices") return createDeviceImportTask(file, workbook);
+  return createRoadsideStatusImportTask(file, workbook);
 }
 
 function createSiteImportTask(file, workbook) {
@@ -515,9 +791,50 @@ function createDeviceImportTask(file, workbook) {
   };
 }
 
+function createRoadsideStatusImportTask(file, workbook) {
+  const sheetName = workbook.SheetNames.find((name) => name === "Sheet1") || firstNonEmptySheet(workbook);
+  const rows = rowsFromSheet(workbook, sheetName);
+  const schemaMatchedRows = rows.filter(isRoadsideStatusSourceRow).length;
+  const importedRows = rows
+    .filter(isRoadsideStatusSourceRow)
+    .map(parseRoadsideStatusRow)
+    .filter((device) => device.deviceId || device.productName || device.deviceTypeName);
+  const enabledRows = importedRows.filter((device) => isRoadsideEnabled(device));
+  const offlineRows = enabledRows.filter((device) => device.status === "离线").length;
+  const abnormalRows = enabledRows.filter((device) => isRoadsideAbnormal(device)).length;
+  const dateMatch = file.name.match(/(20\\d{2})[-_年.]?(\\d{1,2})[-_月.]?(\\d{1,2})/) || file.name.match(/(\\d{2})(\\d{2})/);
+  const importDate = dateMatch && dateMatch.length >= 4
+    ? `${dateMatch[1]}-${String(dateMatch[2]).padStart(2, "0")}-${String(dateMatch[3]).padStart(2, "0")}`
+    : new Date().toISOString().slice(0, 10);
+  return {
+    id: `roadside-${Date.now()}`,
+    type: "roadsideStatus",
+    fileName: file.name,
+    fileSize: file.size,
+    sourceSheet: sheetName,
+    templateMatched: fileLooksLikeTemplate("roadsideStatus", file.name) && schemaMatchedRows > 0,
+    totalRows: rows.length,
+    validRows: importedRows.length,
+    invalidRows: rows.length - importedRows.length,
+    schemaMatchedRows,
+    enabledRows: enabledRows.length,
+    disabledRows: importedRows.length - enabledRows.length,
+    offlineRows,
+    abnormalRows,
+    sampleRows: importedRows.slice(0, 8),
+    importedRoadsideRows: importedRows,
+    importDate,
+    confirmed: false,
+  };
+}
+
 function createImportTask(type, file) {
   const isSites = type === "sites";
-  const sampleRows = isSites ? sites.slice(0, 8) : allDevices().slice(0, 8);
+  const isRoadside = type === "roadsideStatus";
+  const sampleRows = isSites ? sites.slice(0, 8) : isRoadside ? roadsideStatusState.currentRows.slice(0, 8) : allDevices().slice(0, 8);
+  const enabledRows = roadsideStatusState.currentRows.filter(isRoadsideEnabled);
+  const abnormalRows = enabledRows.filter(isRoadsideAbnormal).length;
+  const offlineRows = enabledRows.filter((device) => device.status === "离线").length;
   const invalidRows = isSites ? 1 : 0;
   const matchedRows = allDevices().length;
   return {
@@ -526,8 +843,8 @@ function createImportTask(type, file) {
     fileName: file?.name || expectedFileName(type),
     fileSize: file?.size || 0,
     templateMatched: file ? fileLooksLikeTemplate(type, file.name) : true,
-    totalRows: isSites ? data.stats.siteTotal + invalidRows : data.stats.deviceRows + data.stats.unmatchedRows,
-    validRows: isSites ? data.stats.siteTotal : data.stats.deviceRows,
+    totalRows: isSites ? data.stats.siteTotal + invalidRows : isRoadside ? roadsideStatusState.currentRows.length : data.stats.deviceRows + data.stats.unmatchedRows,
+    validRows: isSites ? data.stats.siteTotal : isRoadside ? roadsideStatusState.currentRows.length : data.stats.deviceRows,
     invalidRows,
     duplicateNodeIdCount: isSites ? 0 : null,
     coordinateErrorCount: isSites ? 1 : null,
@@ -537,6 +854,12 @@ function createImportTask(type, file) {
     unmatchedSheetRows: isSites ? null : data.stats.unmatchedRows,
     unpackingIssueRows: isSites ? null : 42,
     quantityErrorRows: isSites ? null : 18,
+    enabledRows: isRoadside ? enabledRows.length : null,
+    disabledRows: isRoadside ? roadsideStatusState.currentRows.length - enabledRows.length : null,
+    offlineRows: isRoadside ? offlineRows : null,
+    abnormalRows: isRoadside ? abnormalRows : null,
+    importedRoadsideRows: isRoadside ? roadsideStatusState.currentRows : null,
+    importDate: isRoadside ? roadsideStatusState.currentDate : null,
     sampleRows,
     confirmed: false,
   };
@@ -565,6 +888,7 @@ function renderImportTask(task, stage = "preview") {
   const config = importTemplates[task.type];
   const fields = importFieldMaps[task.type];
   const isSites = task.type === "sites";
+  const isRoadside = task.type === "roadsideStatus";
   const stages = ["上传文件", "字段识别", "预校验", "预览", "确认导入", "导入报告"];
   const activeIndex = stage === "report" ? 5 : stage === "confirm" ? 4 : 3;
   const panel = importPanelElement();
@@ -591,6 +915,15 @@ function renderImportTask(task, stage = "preview") {
               <div><span>坐标异常</span><strong>${formatNumber(task.coordinateErrorCount)}</strong></div>
               <div><span>字典异常</span><strong>${formatNumber(task.dictionaryErrorCount)}</strong></div>
               <div><span>重复 NodeID</span><strong>${formatNumber(task.duplicateNodeIdCount)}</strong></div>
+            `
+            : isRoadside
+              ? `
+              <div><span>总行数</span><strong>${formatNumber(task.totalRows)}</strong></div>
+              <div><span>当前表行数</span><strong>${formatNumber(task.validRows)}</strong></div>
+              <div><span>已启用</span><strong>${formatNumber(task.enabledRows)}</strong></div>
+              <div><span>未启用</span><strong>${formatNumber(task.disabledRows)}</strong></div>
+              <div><span>离线</span><strong>${formatNumber(task.offlineRows)}</strong></div>
+              <div><span>异常</span><strong>${formatNumber(task.abnormalRows)}</strong></div>
             `
             : `
               <div><span>Sheet1 行数</span><strong>${formatNumber(task.sheet1TotalRows)}</strong></div>
@@ -626,6 +959,8 @@ function renderImportTask(task, stage = "preview") {
               .map((row) =>
                 isSites
                   ? `<div><strong>${row.nodeId}</strong><span>${row.name} / ${row.district} / ${row.type} / ${perceptionType(row)}</span></div>`
+                  : isRoadside
+                    ? `<div><strong>${row.deviceId}</strong><span>${row.deviceTypeName || "-"} / ${row.devicePosition || "-"} / ${row.status || "-"} / ${row.enabledStatus || "-"}</span></div>`
                   : `<div><strong>${row.nodeId || "未匹配"}</strong><span>${row.name || "-"} / ${row.supplier || "-"} / ${row.contract || "-"}</span></div>`,
               )
               .join("")}
@@ -635,7 +970,7 @@ function renderImportTask(task, stage = "preview") {
       <div class="import-footer">
         ${
           stage === "report"
-            ? `<button class="primary-btn" data-import-finish="${task.type}">${isSites ? "查看点位管理" : "查看设备管理"}</button>
+            ? `<button class="primary-btn" data-import-finish="${task.type}">${isSites ? "查看点位管理" : isRoadside ? "查看运维管理" : "查看设备管理"}</button>
                <button class="ghost-btn" data-choose-import="${task.type}">重新导入</button>`
             : `<button class="primary-btn" data-confirm-import="${task.type}">确认导入</button>
                <button class="ghost-btn" data-choose-import="${task.type}">更换文件</button>`
@@ -649,14 +984,15 @@ function renderImportTask(task, stage = "preview") {
 
 function renderImportReport(task) {
   const isSites = task.type === "sites";
+  const isRoadside = task.type === "roadsideStatus";
   return `
     <div class="import-report">
       <h3>导入报告</h3>
-      <p>${isSites ? "点位库已更新，地图坐标以 GCJ-02 为准，CGCS2000 已进入审计字段。" : "设备安装台账已更新，未匹配记录已进入治理池。"}</p>
+      <p>${isSites ? "点位库已更新，地图坐标以 GCJ-02 为准，CGCS2000 已进入审计字段。" : isRoadside ? "原当前路侧设备状态表已进入历史档案库，新导入数据已成为当前表。" : "设备安装台账已更新，未匹配记录已进入治理池。"}</p>
       <ul>
-        <li>${isSites ? `成功导入 ${formatNumber(task.validRows)} 个点位` : `成功匹配 ${formatNumber(task.matchedRows)} 条设备记录`}</li>
-        <li>${isSites ? `坐标异常 ${formatNumber(task.coordinateErrorCount)} 条，进入坐标治理` : `未匹配 ${formatNumber(task.unmatchedSheetRows)} 条，进入未匹配池`}</li>
-        <li>${isSites ? `字典异常 ${formatNumber(task.dictionaryErrorCount)} 条，需人工复核` : `开箱验收问题 ${formatNumber(task.unpackingIssueRows)} 条，生成异常标识`}</li>
+        <li>${isSites ? `成功导入 ${formatNumber(task.validRows)} 个点位` : isRoadside ? `当前路侧设备状态表 ${formatNumber(task.validRows)} 条` : `成功匹配 ${formatNumber(task.matchedRows)} 条设备记录`}</li>
+        <li>${isSites ? `坐标异常 ${formatNumber(task.coordinateErrorCount)} 条，进入坐标治理` : isRoadside ? `已启用 ${formatNumber(task.enabledRows)} 条，未启用 ${formatNumber(task.disabledRows)} 条` : `未匹配 ${formatNumber(task.unmatchedSheetRows)} 条，进入未匹配池`}</li>
+        <li>${isSites ? `字典异常 ${formatNumber(task.dictionaryErrorCount)} 条，需人工复核` : isRoadside ? `离线 ${formatNumber(task.offlineRows)} 条，异常 ${formatNumber(task.abnormalRows)} 条` : `开箱验收问题 ${formatNumber(task.unpackingIssueRows)} 条，生成异常标识`}</li>
       </ul>
     </div>
   `;
@@ -723,7 +1059,27 @@ function applyDeviceImport(task) {
   data.stats.unmatchedRows = task.unmatchedSheetRows;
 }
 
-function confirmImport(type) {
+async function applyRoadsideStatusImport(task) {
+  if (!task.importedRoadsideRows) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (roadsideStatusState.currentDate && roadsideStatusState.currentDate !== today && roadsideStatusState.currentRows.length) {
+    roadsideStatusState.archives = roadsideStatusState.archives.filter((item) => item.importDate !== roadsideStatusState.currentDate);
+    roadsideStatusState.archives.unshift({
+      importDate: roadsideStatusState.currentDate,
+      rows: roadsideStatusState.currentRows,
+      archivedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+    });
+  }
+  roadsideStatusState.archives = roadsideStatusState.archives.filter((item) => item.importDate !== today);
+  roadsideStatusState.currentDate = today;
+  roadsideStatusState.currentRows = task.importedRoadsideRows;
+  state.opsDate = roadsideStatusState.currentDate;
+  state.opsCalendarCursor = state.opsDate.slice(0, 7);
+  const backendSaved = await saveRoadsideStatusState();
+  if (!backendSaved) alert("本地文件持久化服务未连接。本次导入只保存到了浏览器缓存，请通过 http://127.0.0.1:4173 访问并确认本地服务已启动。");
+}
+
+async function confirmImport(type) {
   if (!state.importTask || state.importTask.type !== type) return;
   state.importTask.confirmed = true;
   if (type === "sites") {
@@ -734,6 +1090,9 @@ function confirmImport(type) {
     applyDeviceImport(state.importTask);
     $("#unmatchedPanel").classList.add("open");
   }
+  if (type === "roadsideStatus") {
+    await applyRoadsideStatusImport(state.importTask);
+  }
   pushImportHistory(state.importTask);
   renderMetrics();
   renderStatusProgress();
@@ -742,6 +1101,13 @@ function confirmImport(type) {
   renderWarehouse();
   renderImportCenter();
   renderCoordinateIssues();
+  renderOps();
+  if (type === "roadsideStatus" && state.panel === "ops") {
+    closeImportPanel($("#opsImportPanel"));
+    state.importTask = null;
+    state.importType = null;
+    return;
+  }
   renderImportTask(state.importTask, "report");
 }
 
@@ -841,6 +1207,16 @@ function renderMap(container, items, options = {}) {
     console.warn("AMap render failed, fallback map enabled.", error);
   }
   renderFallbackMap(container, items, options);
+}
+
+function renderOverviewMap() {
+  const overviewMap = $("#overviewMap");
+  if (!overviewMap) return;
+  renderMap(overviewMap, sites, {
+    label: `全量点位预览：${formatNumber(sites.length)} 个点位`,
+    zoom: 10,
+    maxZoom: 12,
+  });
 }
 
 function renderFilters() {
@@ -1123,6 +1499,704 @@ function renderDocuments() {
     .join("");
 }
 
+function isRoadsideEnabled(device) {
+  return device.enabledStatus === "启用";
+}
+
+function isRoadsideAbnormal(device) {
+  return device.status === "异常";
+}
+
+function roadsideRowsForSelectedDate() {
+  if (state.opsDate === roadsideStatusState.currentDate) return roadsideStatusState.currentRows;
+  const archive = roadsideStatusState.archives.find((item) => item.importDate === state.opsDate);
+  return archive?.rows || roadsideStatusState.currentRows;
+}
+
+function roadsideSummary(rows) {
+  const total = rows.length;
+  const enabled = rows.filter(isRoadsideEnabled);
+  const disabled = total - enabled.length;
+  const online = enabled.filter((device) => device.status === "在线").length;
+  const offline = enabled.filter((device) => device.status === "离线").length;
+  const abnormal = enabled.filter(isRoadsideAbnormal).length;
+  return { total, enabled: enabled.length, disabled, online, offline, abnormal };
+}
+
+function percent(part, total) {
+  if (!total) return "0%";
+  return `${((part / total) * 100).toFixed(1)}%`;
+}
+
+function roadsideTypeStats(rows) {
+  const enabled = rows.filter(isRoadsideEnabled);
+  const groups = new Map();
+  enabled.forEach((device) => {
+    const type = device.deviceTypeName || "未标注";
+    if (!groups.has(type)) groups.set(type, { type, online: 0, offline: 0, abnormal: 0, total: 0 });
+    const group = groups.get(type);
+    group.total += 1;
+    if (device.status === "在线") group.online += 1;
+    if (device.status === "离线") group.offline += 1;
+    if (isRoadsideAbnormal(device)) group.abnormal += 1;
+  });
+  return Array.from(groups.values()).sort((a, b) => b.total - a.total);
+}
+
+function roadsideStatusCounts(devices) {
+  const enabled = devices.filter(isRoadsideEnabled);
+  return {
+    offline: enabled.filter((device) => device.status === "离线").length,
+    abnormal: enabled.filter(isRoadsideAbnormal).length,
+  };
+}
+
+function roadsideAbnormalDevices(rows) {
+  return rows
+    .filter((device) => isRoadsideEnabled(device) && ["离线", "异常"].includes(device.status))
+    .sort((a, b) => {
+      const priority = (device) => (device.status === "异常" ? 2 : device.status === "离线" ? 1 : 0);
+      return priority(b) - priority(a) || String(a.area || "").localeCompare(String(b.area || ""), "zh-CN") || String(a.deviceTypeName || "").localeCompare(String(b.deviceTypeName || ""), "zh-CN");
+    });
+}
+
+function importedRoadsideDays() {
+  const days = [{ importDate: roadsideStatusState.currentDate, rows: roadsideStatusState.currentRows, isCurrent: true }, ...roadsideStatusState.archives];
+  const byDate = new Map();
+  days.forEach((day) => {
+    if (!day.importDate || byDate.has(day.importDate)) return;
+    const summary = roadsideSummary(day.rows || []);
+    byDate.set(day.importDate, {
+      date: day.importDate,
+      isCurrent: Boolean(day.isCurrent),
+      abnormal: summary.abnormal,
+      offline: summary.offline,
+      enabled: summary.enabled,
+      ratio: percent(summary.abnormal, summary.enabled),
+    });
+  });
+  return Array.from(byDate.values()).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function opsCalendarDays() {
+  const imported = new Map(importedRoadsideDays().map((day) => [day.date, day]));
+  const [year, month] = (state.opsCalendarCursor || state.opsDate.slice(0, 7)).split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const blanks = Array.from({ length: firstWeekday }, () => ({ empty: true }));
+  const days = Array.from({ length: daysInMonth }, (_, index) => {
+    const date = `${year}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`;
+    return imported.get(date) || { date, hasImport: false };
+  });
+  return [...blanks, ...days];
+}
+
+function opsCalendarTitle() {
+  const [year, month] = (state.opsCalendarCursor || state.opsDate.slice(0, 7)).split("-");
+  return state.opsCalendarMode === "year" ? `${year} 年` : `${year} 年 ${Number(month)} 月`;
+}
+
+function opsYearMonths() {
+  const imported = importedRoadsideDays();
+  const year = Number((state.opsCalendarCursor || state.opsDate.slice(0, 7)).slice(0, 4));
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = `${year}-${String(index + 1).padStart(2, "0")}`;
+    const days = imported.filter((day) => day.date.startsWith(month));
+    return {
+      month,
+      label: `${index + 1} 月`,
+      importedDays: days.length,
+      abnormal: days.reduce((sum, day) => sum + day.abnormal, 0),
+      offline: days.reduce((sum, day) => sum + day.offline, 0),
+    };
+  });
+}
+
+function opsTrendDays() {
+  const days = importedRoadsideDays()
+    .filter((day) => day.date <= state.opsDate)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return days.length ? days : importedRoadsideDays().sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function smoothSvgPath(points) {
+  if (!points.length) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  const commands = [`M ${points[0].x} ${points[0].y}`];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const previous = points[index - 1] || current;
+    const afterNext = points[index + 2] || next;
+    const cp1 = {
+      x: current.x + (next.x - previous.x) / 6,
+      y: current.y + (next.y - previous.y) / 6,
+    };
+    const cp2 = {
+      x: next.x - (afterNext.x - current.x) / 6,
+      y: next.y - (afterNext.y - current.y) / 6,
+    };
+    commands.push(`C ${cp1.x.toFixed(2)} ${cp1.y.toFixed(2)}, ${cp2.x.toFixed(2)} ${cp2.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`);
+  }
+  return commands.join(" ");
+}
+
+function bindOpsTrendHover(target) {
+  const groups = Array.from(target.querySelectorAll(".ops-trend-hit-group"));
+  groups.forEach((group) => {
+    const zone = group.querySelector(".ops-trend-hit-zone");
+    if (!zone) return;
+    zone.setAttribute("tabindex", "0");
+    const show = () => group.setAttribute("data-active", "true");
+    const hide = () => group.removeAttribute("data-active");
+    zone.addEventListener("pointerenter", show);
+    zone.addEventListener("pointerleave", hide);
+    zone.addEventListener("mouseenter", show);
+    zone.addEventListener("mouseleave", hide);
+    zone.addEventListener("focus", () => group.setAttribute("data-active", "true"));
+    zone.addEventListener("blur", () => group.removeAttribute("data-active"));
+  });
+}
+
+function renderOpsTrendChart() {
+  const target = $("#opsTrendCard");
+  if (!target) return;
+  const days = opsTrendDays();
+  if (!days.length) {
+    target.innerHTML = `
+      <div class="ops-trend-empty">
+        <strong>离线/异常趋势</strong>
+        <span>暂无可绘制的历史导入数据</span>
+      </div>
+    `;
+    return;
+  }
+  const width = 960;
+  const height = 320;
+  const pad = { top: 42, right: 34, bottom: 72, left: 58 };
+  const innerWidth = width - pad.left - pad.right;
+  const innerHeight = height - pad.top - pad.bottom;
+  const maxValue = Math.max(1, ...days.flatMap((day) => [day.offline, day.abnormal]));
+  const xFor = (index) => pad.left + (days.length === 1 ? innerWidth / 2 : (index / (days.length - 1)) * innerWidth);
+  const yFor = (value) => pad.top + innerHeight - (value / maxValue) * innerHeight;
+  const offlinePoints = days.map((day, index) => ({ x: xFor(index), y: yFor(day.offline), value: day.offline, date: day.date }));
+  const abnormalPoints = days.map((day, index) => ({ x: xFor(index), y: yFor(day.abnormal), value: day.abnormal, date: day.date }));
+  const offlinePath = smoothSvgPath(offlinePoints);
+  const abnormalPath = smoothSvgPath(abnormalPoints);
+  const areaPath = `${offlinePath} L ${offlinePoints.at(-1).x} ${pad.top + innerHeight} L ${offlinePoints[0].x} ${pad.top + innerHeight} Z`;
+  const selectedIndex = days.findIndex((day) => day.date === state.opsDate);
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : days.length - 1;
+  const selected = days[selectedIndex] || days.at(-1);
+  const selectedPoint = offlinePoints[activeIndex] || offlinePoints.at(-1);
+  const ticks = Array.from({ length: 4 }, (_, index) => Math.round((maxValue / 3) * index));
+  const hitWidth = Math.max(18, innerWidth / Math.max(1, days.length - 1));
+  const labelRotation = days.length > 10 ? -36 : 0;
+  target.innerHTML = `
+    <div class="ops-trend-head">
+      <div>
+        <strong>离线/异常趋势</strong>
+        <span>${days[0].date} 至 ${selected.date}</span>
+      </div>
+      <div class="ops-trend-kpi">
+        <b>${formatNumber(selected.offline)}</b><span>离线</span>
+        <b>${formatNumber(selected.abnormal)}</b><span>异常</span>
+      </div>
+    </div>
+    <svg class="ops-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="离线和异常趋势折线图">
+      <defs>
+        <linearGradient id="opsOfflineStroke" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="#fff8ea" />
+          <stop offset="55%" stop-color="#ffb454" />
+          <stop offset="100%" stop-color="#ffd879" />
+        </linearGradient>
+        <linearGradient id="opsOfflineArea" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#ffb454" stop-opacity="0.5" />
+          <stop offset="64%" stop-color="#ffb454" stop-opacity="0.12" />
+          <stop offset="100%" stop-color="#ffb454" stop-opacity="0" />
+        </linearGradient>
+        <filter id="opsGlassGlow" x="-20%" y="-30%" width="140%" height="180%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      ${ticks
+        .map((tick) => {
+          const y = yFor(tick);
+          return `<g class="ops-trend-grid horizontal"><line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" /><text x="${pad.left - 12}" y="${y + 4}">${tick}</text></g>`;
+        })
+        .join("")}
+      ${days
+        .map((day, index) => {
+          const x = xFor(index);
+          return `<g class="ops-trend-grid vertical"><line x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + innerHeight}" /></g>`;
+        })
+        .join("")}
+      <path class="ops-trend-area" d="${areaPath}" />
+      <path class="ops-trend-line offline" d="${offlinePath}" />
+      <path class="ops-trend-line abnormal" d="${abnormalPath}" />
+      <line class="ops-trend-cursor active" x1="${selectedPoint.x}" y1="${pad.top}" x2="${selectedPoint.x}" y2="${pad.top + innerHeight}" />
+      <circle class="ops-trend-dot offline" cx="${selectedPoint.x}" cy="${selectedPoint.y}" r="6" />
+      <text class="ops-trend-tip" x="${Math.min(width - 126, selectedPoint.x + 10)}" y="${Math.max(28, selectedPoint.y - 12)}">${formatNumber(selected.offline)} 离线</text>
+      ${days
+        .map((day, index) => {
+          const x = xFor(index);
+          const transform = labelRotation ? ` transform="rotate(${labelRotation} ${x} ${height - 28})"` : "";
+          return `<text class="ops-trend-date" x="${x}" y="${height - 28}"${transform}>${day.date.slice(5)}</text>`;
+        })
+        .join("")}
+      ${days
+        .map((day, index) => {
+          const x = xFor(index);
+          const offlinePoint = offlinePoints[index];
+          const abnormalPoint = abnormalPoints[index];
+          const tipX = Math.min(width - 164, Math.max(pad.left + 6, x + 12));
+          const tipY = Math.max(pad.top + 14, Math.min(pad.top + innerHeight - 64, Math.min(offlinePoint.y, abnormalPoint.y) - 52));
+          return `
+            <g class="ops-trend-hit-group">
+              <rect class="ops-trend-hit-zone" x="${x - hitWidth / 2}" y="${pad.top - 10}" width="${hitWidth}" height="${innerHeight + 28}" />
+              <g class="ops-trend-hover">
+                <line class="ops-trend-cursor" x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + innerHeight}" />
+                <circle class="ops-trend-dot offline" cx="${offlinePoint.x}" cy="${offlinePoint.y}" r="6" />
+                <circle class="ops-trend-dot abnormal" cx="${abnormalPoint.x}" cy="${abnormalPoint.y}" r="5" />
+                <rect class="ops-trend-tooltip-bg" x="${tipX}" y="${tipY}" width="150" height="62" rx="10" />
+                <text class="ops-trend-tooltip" x="${tipX + 12}" y="${tipY + 21}">
+                  <tspan class="date">${day.date}</tspan>
+                  <tspan x="${tipX + 12}" dy="19" class="offline">离线 ${formatNumber(day.offline)}</tspan>
+                  <tspan x="${tipX + 82}" dy="0" class="abnormal">异常 ${formatNumber(day.abnormal)}</tspan>
+                </text>
+              </g>
+            </g>
+          `;
+        })
+        .join("")}
+    </svg>
+    <div class="ops-trend-legend">
+      <span><i class="offline"></i>离线数量</span>
+      <span><i class="abnormal"></i>异常数量</span>
+    </div>
+  `;
+  bindOpsTrendHover(target);
+}
+
+function shiftOpsCalendar(direction) {
+  const [year, month] = (state.opsCalendarCursor || state.opsDate.slice(0, 7)).split("-").map(Number);
+  if (state.opsCalendarMode === "year") {
+    state.opsCalendarCursor = `${year + direction}-${String(month).padStart(2, "0")}`;
+  } else {
+    const next = new Date(year, month - 1 + direction, 1);
+    state.opsCalendarCursor = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+  }
+}
+
+async function moveRoadsideDay(sourceDate, targetDate) {
+  if (!sourceDate || !targetDate || sourceDate === targetDate) return;
+  const sourceRows = roadsideRowsForSelectedDateFor(sourceDate);
+  if (!sourceRows.length) return;
+  removeRoadsideDay(targetDate);
+  if (sourceDate === roadsideStatusState.currentDate) {
+    const previousCurrentDate = roadsideStatusState.currentDate;
+    const previousCurrentRows = roadsideStatusState.currentRows;
+    const replacement = importedRoadsideDays().find((day) => day.date !== sourceDate && day.date !== targetDate);
+    roadsideStatusState.archives.unshift({
+      importDate: targetDate,
+      rows: previousCurrentRows,
+      archivedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+    });
+    if (replacement) {
+      const replacementRows = roadsideRowsForSelectedDateFor(replacement.date);
+      removeRoadsideDay(replacement.date);
+      roadsideStatusState.currentDate = replacement.date;
+      roadsideStatusState.currentRows = replacementRows;
+    } else {
+      roadsideStatusState.currentDate = previousCurrentDate;
+      roadsideStatusState.currentRows = [];
+    }
+  } else {
+    const archive = roadsideStatusState.archives.find((item) => item.importDate === sourceDate);
+    if (archive) archive.importDate = targetDate;
+  }
+  state.opsDate = targetDate;
+  state.opsCalendarCursor = targetDate.slice(0, 7);
+  const backendSaved = await saveRoadsideStatusState();
+  if (!backendSaved) alert("本地文件持久化服务未连接。本次日期调整只保存到了浏览器缓存，请通过 http://127.0.0.1:4173 访问并确认本地服务已启动。");
+  renderOps();
+}
+
+function roadsideRowsForSelectedDateFor(date) {
+  if (date === roadsideStatusState.currentDate) return roadsideStatusState.currentRows;
+  const archive = roadsideStatusState.archives.find((item) => item.importDate === date);
+  return archive?.rows || [];
+}
+
+function removeRoadsideDay(date) {
+  roadsideStatusState.archives = roadsideStatusState.archives.filter((item) => item.importDate !== date);
+}
+
+function siteByNodeId(nodeId) {
+  const normalized = String(nodeId || "").trim();
+  if (!normalized) return null;
+  return sites.find((site) => site.nodeId === normalized) || null;
+}
+
+function roadsideSiteForDevice(device) {
+  return siteByNodeId(device.intersectionId);
+}
+
+function roadsidePointTitle(point) {
+  return point.site ? `${point.site.name} / NodeID ${point.site.nodeId}` : point.fallbackTitle;
+}
+
+function roadsidePointVendorLabel(point) {
+  const vendors = Array.from(new Set(point.devices.map((device) => device.vendorName).filter(Boolean)));
+  if (!vendors.length) return "厂商：-";
+  if (vendors.length === 1) return `厂商：${vendors[0]}`;
+  return `厂商：多厂商：${vendors.slice(0, 3).join("、")}${vendors.length > 3 ? `等 ${vendors.length} 家` : ""}`;
+}
+
+function buildRoadsidePointGroups(rows) {
+  const groups = new Map();
+  rows.filter(isRoadsideEnabled).forEach((device) => {
+    const site = roadsideSiteForDevice(device);
+    const hasSiteCoordinate = site && site.lngGcj && site.latGcj;
+    const hasDeviceCoordinate = device.lng && device.lat;
+    if (!hasSiteCoordinate && !hasDeviceCoordinate) return;
+    const key = hasSiteCoordinate ? `site:${site.nodeId}` : `device:${device.deviceId}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        site: hasSiteCoordinate ? site : null,
+        lng: hasSiteCoordinate ? site.lngGcj : device.lng,
+        lat: hasSiteCoordinate ? site.latGcj : device.lat,
+        fallbackTitle: device.devicePosition || device.relatedIntersection || device.deviceId,
+        devices: [],
+      });
+    }
+    groups.get(key).devices.push(device);
+  });
+  return Array.from(groups.values())
+    .map((point) => ({
+      ...point,
+      statusCounts: roadsideStatusCounts(point.devices),
+      displayStatus: point.devices.some(isRoadsideAbnormal) ? "异常" : "离线",
+    }))
+    .filter((point) => point.statusCounts.offline > 0 || point.statusCounts.abnormal > 0);
+}
+
+function roadsidePointDeviceSummary(point) {
+  const rowsByTypeVendor = new Map();
+  point.devices.forEach((device) => {
+    const type = device.deviceTypeName || "未标注";
+    const vendor = device.vendorName || "-";
+    const key = `${type}__${vendor}`;
+    if (!rowsByTypeVendor.has(key)) rowsByTypeVendor.set(key, { type, vendor, total: 0, offline: 0, abnormal: 0 });
+    const row = rowsByTypeVendor.get(key);
+    row.total += 1;
+    if (device.status === "离线") row.offline += 1;
+    if (isRoadsideAbnormal(device)) row.abnormal += 1;
+  });
+  const rows = Array.from(rowsByTypeVendor.values()).sort((a, b) => (b.offline + b.abnormal) - (a.offline + a.abnormal) || b.total - a.total || a.vendor.localeCompare(b.vendor, "zh-CN"));
+  return `
+    <div class="ops-point-summary">
+      <div class="ops-point-summary-row ops-point-summary-head">
+        <span>设备类型</span>
+        <span>厂商</span>
+        <span>设备数量</span>
+        <span class="ops-alert-count">离线数量</span>
+        <span class="ops-alert-count">异常数量</span>
+      </div>
+      ${rows
+        .map(
+          (row) => `
+            <div class="ops-point-summary-row">
+              <span class="ops-point-type">${row.type}</span>
+              <span class="ops-point-vendor-name">${row.vendor}</span>
+              <span><b>${row.total}</b></span>
+              <span class="ops-alert-count"><b>${row.offline}</b></span>
+              <span class="ops-alert-count"><b>${row.abnormal}</b></span>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderAmapOpsMap(container, pointGroups, unmatchedCount) {
+  if (!window.AMap || !pointGroups.length) return false;
+  const previousMap = amapInstances.get(container);
+  if (previousMap) {
+    previousMap.destroy();
+    amapInstances.delete(container);
+  }
+  container.innerHTML = "";
+  container.classList.add("amap-live");
+  const first = pointGroups[0];
+  const map = new window.AMap.Map(container, {
+    zoom: 12,
+    center: [first.lng, first.lat],
+    viewMode: "2D",
+    mapStyle: "amap://styles/normal",
+  });
+  amapInstances.set(container, map);
+
+  const info = new window.AMap.InfoWindow({
+    offset: new window.AMap.Pixel(0, -8),
+    autoMove: true,
+  });
+  let closeInfoTimer = null;
+
+  const markers = pointGroups.map((point) => {
+    const title = roadsidePointTitle(point);
+    const marker = new window.AMap.Marker({
+      position: [point.lng, point.lat],
+      title,
+      offset: new window.AMap.Pixel(-8, -8),
+      zIndex: point.displayStatus === "异常" ? 80 : point.site ? 70 : 65,
+      content: `<button class="amap-ops-marker ${point.displayStatus === "异常" ? "abnormal" : "offline"} ${point.site ? "" : "unmatched"}" title="${title}"></button>`,
+    });
+    marker.on("mouseover", () => {
+      if (closeInfoTimer) window.clearTimeout(closeInfoTimer);
+      info.setContent(`<div class="amap-ops-info"><strong>${title}</strong>${roadsidePointDeviceSummary(point)}</div>`);
+      info.open(map, marker.getPosition());
+    });
+    marker.on("click", () => {
+      if (closeInfoTimer) window.clearTimeout(closeInfoTimer);
+      info.setContent(`<div class="amap-ops-info"><strong>${title}</strong>${roadsidePointDeviceSummary(point)}</div>`);
+      info.open(map, marker.getPosition());
+    });
+    marker.on("mouseout", () => {
+      closeInfoTimer = window.setTimeout(() => info.close(), 600);
+    });
+    return marker;
+  });
+  map.add(markers);
+  if (markers.length > 1) map.setFitView(markers, false, [42, 42, 42, 42], 15);
+
+  const label = document.createElement("div");
+  label.className = "map-label";
+  const deviceCount = pointGroups.reduce((sum, point) => sum + point.statusCounts.offline + point.statusCounts.abnormal, 0);
+  label.textContent = `高德地图 | 离线/异常点位 ${pointGroups.length} 个，设备 ${deviceCount} 台${unmatchedCount ? `，${unmatchedCount} 台未匹配点位` : ""}`;
+  container.appendChild(label);
+  return true;
+}
+
+function renderOpsMap(rows) {
+  const target = $("#opsDeviceMap");
+  if (!target) return;
+  const devices = rows
+    .filter((device) => isRoadsideEnabled(device) && ["离线", "异常"].includes(device.status));
+  const pointGroups = buildRoadsidePointGroups(rows).slice(0, 300);
+  const unmatchedCount = pointGroups.filter((point) => !point.site).reduce((sum, point) => sum + point.statusCounts.offline + point.statusCounts.abnormal, 0);
+  try {
+    if (renderAmapOpsMap(target, pointGroups, unmatchedCount)) return;
+  } catch (error) {
+    console.warn("AMap ops render failed, fallback map enabled.", error);
+  }
+  target.innerHTML = "";
+  target.classList.remove("amap-live");
+  const pseudoSites = pointGroups.map((point) => ({
+    nodeId: point.site?.nodeId || point.key,
+    name: point.site?.name || point.fallbackTitle,
+    district: point.site?.district || point.devices[0]?.area || "未匹配",
+    lngGcj: point.lng,
+    latGcj: point.lat,
+    status: point.displayStatus,
+    issueCount: point.statusCounts.abnormal,
+  }));
+  const bounds = mapBounds(pseudoSites.length ? pseudoSites : sites.slice(0, 10));
+  pointGroups.forEach((point) => {
+    const pos = markerPosition({ lngGcj: point.lng, latGcj: point.lat }, bounds);
+    const marker = document.createElement("div");
+    marker.className = `marker ops-device-marker ${point.displayStatus === "异常" ? "abnormal" : "offline"}`;
+    marker.style.left = `${pos.left}%`;
+    marker.style.top = `${pos.top}%`;
+    marker.innerHTML = `
+      <button aria-label="${roadsidePointTitle(point)}"></button>
+      <span>${point.displayStatus}</span>
+      <div class="ops-map-tooltip">
+        <strong>${roadsidePointTitle(point)}</strong>
+        ${roadsidePointDeviceSummary(point)}
+      </div>
+    `;
+    target.appendChild(marker);
+  });
+  const label = document.createElement("div");
+  label.className = "map-label";
+  const deviceCount = pointGroups.reduce((sum, point) => sum + point.statusCounts.offline + point.statusCounts.abnormal, 0);
+  label.textContent = `静态地图回退 | 离线/异常点位 ${pointGroups.length} 个，设备 ${deviceCount} 台${unmatchedCount ? `，${unmatchedCount} 台未匹配点位` : ""}`;
+  target.appendChild(label);
+}
+
+function renderOps() {
+  renderPersistenceStatus();
+  const rows = roadsideRowsForSelectedDate();
+  const summary = roadsideSummary(rows);
+  $("#opsCurrentDate").textContent = `当前日期：${state.opsDate}`;
+  $("#opsCalendarTitle").textContent = opsCalendarTitle();
+  $("#opsSummaryGrid").innerHTML = [
+    ["全部路侧设备总数", summary.total, "导入表全部设备"],
+    ["已启用路侧设备总数", summary.enabled, "统计口径基数"],
+    ["未启用路侧设备总数", summary.disabled, "不纳入在线率统计"],
+    ["在线设备", summary.online, percent(summary.online, summary.enabled)],
+    ["离线设备", summary.offline, percent(summary.offline, summary.enabled)],
+    ["异常设备", summary.abnormal, percent(summary.abnormal, summary.enabled)],
+  ]
+    .map(
+      ([title, value, note]) => `
+        <div class="metric ops-metric">
+          <span>${title}</span>
+          <strong>${formatNumber(value)}</strong>
+          <small>${note}</small>
+        </div>
+      `,
+    )
+    .join("");
+  $("#opsStatsRows").innerHTML = roadsideTypeStats(rows)
+    .map(
+      (item) => `
+        <tr>
+          <td><strong>${item.type}</strong></td>
+          <td>${formatNumber(item.online)}</td>
+          <td>${percent(item.online, item.total)}</td>
+          <td>${formatNumber(item.offline)}</td>
+          <td>${percent(item.offline, item.total)}</td>
+          <td>${formatNumber(item.abnormal)}</td>
+          <td>${percent(item.abnormal, item.total)}</td>
+          <td>${formatNumber(item.total)}</td>
+        </tr>
+      `,
+    )
+    .join("");
+  const abnormalDevices = roadsideAbnormalDevices(rows);
+  const detailRows = abnormalDevices.slice(0, 500);
+  $("#opsDetailCount").textContent = `显示 ${formatNumber(detailRows.length)} / ${formatNumber(abnormalDevices.length)} 条异常/离线设备`;
+  $("#opsDeviceRows").innerHTML = detailRows
+    .map(
+      (device, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${device.devicePosition || device.relatedIntersection || "-"}<br /><small>${device.intersectionId || ""}</small></td>
+          <td>${device.area || "-"}</td>
+          <td><span class="device-type">${device.deviceTypeName || "-"}</span></td>
+          <td>${device.vendorName || "-"}</td>
+          <td><strong>${device.deviceId}</strong></td>
+          <td><span class="status-pill ${device.status === "在线" ? "done" : "warn"}">${device.status || "-"}</span></td>
+        </tr>
+      `,
+    )
+    .join("");
+  $$("[data-ops-calendar-mode]").forEach((button) => button.classList.toggle("active", button.dataset.opsCalendarMode === state.opsCalendarMode));
+  $("#opsWeekdays").innerHTML = state.opsCalendarMode === "month"
+    ? ["日", "一", "二", "三", "四", "五", "六"].map((day) => `<span>${day}</span>`).join("")
+    : "";
+  if (state.opsCalendarMode === "year") {
+    $("#opsCalendar").classList.add("year-mode");
+    $("#opsCalendar").innerHTML = opsYearMonths()
+      .map(
+        (month) => `
+          <button class="year-month ${month.importedDays ? "" : "no-data"}" data-ops-month="${month.month}" title="${month.month} 导入 ${month.importedDays} 天">
+            <strong class="calendar-day">${month.label}</strong>
+            <span class="calendar-counts"><b>导入 ${month.importedDays} 天</b><b>异常 ${formatNumber(month.abnormal)}</b></span>
+            <small>离线 ${formatNumber(month.offline)}</small>
+          </button>
+        `,
+      )
+      .join("");
+  } else {
+    $("#opsCalendar").classList.remove("year-mode");
+    const calendarDays = opsCalendarDays();
+    $("#opsCalendar").innerHTML = calendarDays
+      .map((day) => {
+        if (day.empty) return `<div class="calendar-blank" aria-hidden="true"></div>`;
+        return `
+          <button class="${day.date === state.opsDate ? "active" : ""} ${day.hasImport === false ? "no-data" : ""}" ${day.hasImport === false ? "" : `data-ops-date="${day.date}" draggable="true" data-ops-drag-date="${day.date}"`} data-ops-drop-date="${day.date}" title="${day.hasImport === false ? `${day.date} 无导入，可拖放导入日数据到此日期` : `${day.date} 异常 ${day.abnormal}，离线 ${day.offline}，异常占比 ${day.ratio}`}" >
+            <strong class="calendar-day">${Number(day.date.slice(-2))}</strong>
+            ${day.hasImport === false
+              ? `<span class="calendar-muted">无导入</span><small>${day.date}</small>`
+              : `<span class="calendar-counts"><b>异常 ${formatNumber(day.abnormal)}</b><b>离线 ${formatNumber(day.offline)}</b></span><small>${day.isCurrent ? "当前" : "历史"} · ${day.ratio}</small>`}
+          </button>
+        `;
+      })
+      .join("");
+  }
+  renderOpsTrendChart();
+  renderOpsMap(rows);
+}
+
+function exportRoadsideExcel(kind) {
+  const rows = roadsideRowsForSelectedDate();
+  if (kind === "stats") {
+    exportRoadsideStatsWorkbook(rows);
+  } else {
+    exportRoadsideAbnormalWorkbook(rows);
+  }
+}
+
+function writeWorkbookFile(fileName, sheetName, rows, columns) {
+  if (!window.XLSX) {
+    alert("缺少 XLSX 导出库，请确认 prototype/vendor/xlsx.full.min.js 已加载。");
+    return;
+  }
+  const worksheet = window.XLSX.utils.aoa_to_sheet(rows);
+  if (columns) worksheet["!cols"] = columns;
+  const workbook = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  window.XLSX.writeFile(workbook, fileName);
+}
+
+function exportRoadsideStatsWorkbook(rows) {
+  const workbookRows = [
+      ["设备类型", "在线数量", "在线占比", "离线数量", "离线占比", "异常数量", "异常占比", "合计"],
+      ...roadsideTypeStats(rows).map((item) => [
+        item.type,
+        item.online,
+        percent(item.online, item.total),
+        item.offline,
+        percent(item.offline, item.total),
+        item.abnormal,
+        percent(item.abnormal, item.total),
+        item.total,
+      ]),
+  ];
+  writeWorkbookFile(`当日异常设备统计表-${state.opsDate}.xlsx`, "异常统计", workbookRows, [
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 10 },
+  ]);
+}
+
+function exportRoadsideAbnormalWorkbook(rows) {
+  const workbookRows = [
+    ["序号", "点位/位置", "区域", "设备类型", "厂商", "设备编号", "状态"],
+    ...roadsideAbnormalDevices(rows).map((device, index) => [
+      index + 1,
+      device.devicePosition || device.relatedIntersection || "-",
+      device.area || "-",
+      device.deviceTypeName || "-",
+      device.vendorName || "-",
+      device.deviceId || "-",
+      device.status || "-",
+    ]),
+  ];
+  writeWorkbookFile(`路侧设备运行状态异常详表-${state.opsDate}.xlsx`, "异常详表", workbookRows, [
+    { wch: 8 },
+    { wch: 30 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 10 },
+  ]);
+}
+
 function nearestSites(site) {
   return sites
     .filter((item) => item.nodeId !== site.nodeId)
@@ -1282,7 +2356,7 @@ function bindEvents() {
     const chooseImport = event.target.closest("[data-choose-import]");
     if (chooseImport) {
       const type = chooseImport.dataset.chooseImport;
-      const input = type === "sites" ? $("#siteImportInput") : $("#deviceImportInput");
+      const input = importInputForType(type);
       input.value = "";
       input.click();
       return;
@@ -1299,7 +2373,8 @@ function bindEvents() {
     }
     const finishButton = event.target.closest("[data-import-finish]");
     if (finishButton) {
-      setPanel(finishButton.dataset.importFinish === "sites" ? "sites" : "devices");
+      const finishType = finishButton.dataset.importFinish;
+      setPanel(finishType === "sites" ? "sites" : finishType === "roadsideStatus" ? "ops" : "devices");
       return;
     }
     const deleter = event.target.closest("[data-delete-site]");
@@ -1338,8 +2413,52 @@ function bindEvents() {
       renderUnmatchedRows();
       return;
     }
+    const opsDateButton = event.target.closest("[data-ops-date]");
+    if (opsDateButton) {
+      state.opsDate = opsDateButton.dataset.opsDate;
+      state.opsCalendarCursor = state.opsDate.slice(0, 7);
+      renderOps();
+      return;
+    }
+    const opsMonthButton = event.target.closest("[data-ops-month]");
+    if (opsMonthButton) {
+      state.opsCalendarCursor = opsMonthButton.dataset.opsMonth;
+      state.opsCalendarMode = "month";
+      renderOps();
+      return;
+    }
+    const calendarShift = event.target.closest("[data-ops-calendar-shift]");
+    if (calendarShift) {
+      shiftOpsCalendar(Number(calendarShift.dataset.opsCalendarShift));
+      renderOps();
+      return;
+    }
+    const calendarMode = event.target.closest("[data-ops-calendar-mode]");
+    if (calendarMode) {
+      state.opsCalendarMode = calendarMode.dataset.opsCalendarMode;
+      renderOps();
+      return;
+    }
     const opener = event.target.closest("[data-open-site]");
     if (opener) openSite(opener.dataset.openSite);
+  });
+  document.body.addEventListener("dragstart", (event) => {
+    const dragDate = event.target.closest("[data-ops-drag-date]");
+    if (!dragDate) return;
+    event.dataTransfer.setData("text/plain", dragDate.dataset.opsDragDate);
+    event.dataTransfer.effectAllowed = "move";
+  });
+  document.body.addEventListener("dragover", (event) => {
+    const dropDate = event.target.closest("[data-ops-drop-date]");
+    if (!dropDate) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  });
+  document.body.addEventListener("drop", (event) => {
+    const dropDate = event.target.closest("[data-ops-drop-date]");
+    if (!dropDate) return;
+    event.preventDefault();
+    moveRoadsideDay(event.dataTransfer.getData("text/plain"), dropDate.dataset.opsDropDate);
   });
   $$(".detail-tabs button").forEach((button) =>
     button.addEventListener("click", () => {
@@ -1349,6 +2468,7 @@ function bindEvents() {
   );
   $("#closeDrawer").addEventListener("click", closeDrawer);
   $("#scrim").addEventListener("click", closeDrawer);
+  $("#visualThemeToggle").addEventListener("click", toggleVisualTheme);
   $("#openFirstSite").addEventListener("click", () => openSite(sites[0].nodeId));
   $("#importSiteTable").addEventListener("click", () => showImportPanel("sites"));
   $("#importDeviceTable").addEventListener("click", () => showImportPanel("devices"));
@@ -1359,6 +2479,10 @@ function bindEvents() {
   $("#deviceImportInput").addEventListener("change", (event) => {
     const [file] = event.target.files;
     if (file) startImport("devices", file);
+  });
+  $("#roadsideStatusImportInput").addEventListener("change", (event) => {
+    const [file] = event.target.files;
+    if (file) startImport("roadsideStatus", file);
   });
   $("#showUnmatched").addEventListener("click", () => {
     $("#unmatchedPanel").classList.toggle("open");
@@ -1385,13 +2509,23 @@ function bindEvents() {
     $$(".detail-tabs button").forEach((item) => item.classList.toggle("active", item.dataset.detailTab === "archive"));
     $$(".detail-pane").forEach((pane) => pane.classList.toggle("active", pane.id === "detailArchive"));
   });
+  $("#exportAbnormalList").addEventListener("click", () => exportRoadsideExcel("list"));
+  $("#exportAbnormalStats").addEventListener("click", () => exportRoadsideExcel("stats"));
+  window.addEventListener("amap-ready", () => {
+    if (state.panel === "ops") renderOpsMap(roadsideRowsForSelectedDate());
+    if (state.view === "map") renderMap($("#siteMap"), filteredSites());
+  });
 }
 
-function init() {
+async function init() {
+  state.visualTheme = loadVisualTheme();
+  applyVisualTheme(state.visualTheme);
+  await loadRoadsideStatusState();
+  renderPageHeader();
   renderMetrics();
   renderStatusProgress();
   renderContractStrip();
-  renderMap($("#overviewMap"), sites.slice(0, 24));
+  renderOverviewMap();
   renderFilters();
   renderSites();
   renderDevices();
@@ -1400,6 +2534,7 @@ function init() {
   renderImportCenter();
   renderCoordinateIssues();
   renderDocuments();
+  renderOps();
   bindEvents();
 }
 
