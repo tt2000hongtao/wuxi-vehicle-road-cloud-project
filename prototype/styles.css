@@ -5159,3 +5159,135 @@ body[data-visual-theme="macos"] .site-card-node {
 body[data-visual-theme="macos"] .site-card .card-foot span {
   color: #687579;
 }
+
+/* Sidebar menu icons */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nav-item::before {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.11);
+  color: currentColor;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.92;
+}
+
+.nav-item[data-panel="overview"]::before { content: "⌂"; }
+.nav-item[data-panel="sites"]::before { content: "⌖"; }
+.nav-item[data-panel="devices"]::before { content: "▣"; }
+.nav-item[data-panel="mapAssets"]::before { content: "◇"; }
+.nav-item[data-panel="imports"]::before { content: "↥"; }
+.nav-item[data-panel="coordinates"]::before { content: "◎"; }
+.nav-item[data-panel="contracts"]::before { content: "§"; }
+.nav-item[data-panel="warehouse"]::before { content: "▤"; }
+.nav-item[data-panel="documents"]::before { content: "◫"; }
+.nav-item[data-panel="ops"]::before { content: "⚙"; }
+
+.nav-item:hover::before,
+.nav-item.active::before {
+  background: rgba(9, 42, 45, 0.10);
+}
+
+body[data-visual-theme="macos"] .nav-item::before,
+body:not([data-visual-theme]) .nav-item::before {
+  background: rgba(18, 115, 111, 0.10);
+}
+
+body[data-visual-theme="macos"] .nav-item:hover::before,
+body[data-visual-theme="macos"] .nav-item.active::before,
+body:not([data-visual-theme]) .nav-item:hover::before,
+body:not([data-visual-theme]) .nav-item.active::before {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+body[data-visual-theme="command"] .nav-item::before {
+  background: rgba(33, 215, 232, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(112, 239, 255, 0.12);
+}
+
+body[data-visual-theme="trajectory"] .nav-item::before {
+  background: rgba(215, 210, 200, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+}
+
+/* Ops page summary card relayout: move third-line note into second row */
+#ops .ops-summary-grid {
+  grid-template-columns: repeat(6, minmax(132px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+#ops .ops-metric {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 9px;
+  min-height: 82px;
+  padding: 13px 14px 12px;
+}
+
+#ops .ops-metric > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ops .ops-metric-value-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(58px, 1fr);
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+#ops .ops-metric-value-row strong {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
+#ops .ops-metric-value-row small {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ops .ops-layout {
+  grid-template-columns: minmax(520px, 0.96fr) minmax(560px, 1.04fr);
+  gap: 16px;
+}
+
+#ops .ops-layout > .surface {
+  min-height: 540px;
+}
+
+@media (max-width: 1380px) {
+  #ops .ops-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

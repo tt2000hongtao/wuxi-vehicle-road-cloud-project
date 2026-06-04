@@ -2764,8 +2764,10 @@ function renderOps() {
       ([title, value, note]) => `
         <div class="metric ops-metric">
           <span>${title}</span>
-          <strong>${formatNumber(value)}</strong>
-          <small>${note}</small>
+          <div class="ops-metric-value-row">
+            <strong>${formatNumber(value)}</strong>
+            <small>${note}</small>
+          </div>
         </div>
       `,
     )
