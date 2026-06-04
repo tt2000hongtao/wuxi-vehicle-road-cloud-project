@@ -23,6 +23,7 @@
           <button class="nav-item active" data-panel="overview">总览</button>
           <button class="nav-item" data-panel="sites">点位管理</button>
           <button class="nav-item" data-panel="devices">设备管理</button>
+          <button class="nav-item" data-panel="mapAssets">地图资产</button>
           <button class="nav-item" data-panel="imports">导入中心</button>
           <button class="nav-item" data-panel="coordinates">坐标异常</button>
           <button class="nav-item" data-panel="contracts">合同管理</button>
@@ -236,6 +237,52 @@
           </div>
         </section>
 
+        <section class="panel" id="mapAssets">
+          <div class="section-head map-assets-head">
+            <div>
+              <h2>地图资产</h2>
+              <p>按路口聚合 MAP、RSI、信号机 Excel 和 SVG 预览，支持完整性校核与文件穿透</p>
+            </div>
+            <div class="import-actions map-asset-actions">
+              <button class="primary-btn" id="refreshMapAssets">重新扫描目录</button>
+              <button class="ghost-btn" id="mapAssetRoot">查看目录口径</button>
+              <button class="ghost-btn map-asset-export-list" id="exportAllMapAssets">导出全部地图资产点位列表</button>
+              <button class="ghost-btn" id="exportIncompleteMapAssets">导出不完整地图资产点位列表</button>
+              <span class="map-asset-status" id="mapAssetStatus">正在读取地图资产目录</span>
+            </div>
+          </div>
+          <div class="map-asset-metrics" id="mapAssetMetrics"></div>
+          <div class="section-head sticky-head map-asset-toolbar">
+            <span id="mapAssetCount"></span>
+          </div>
+          <div class="map-asset-layout">
+            <div class="table-wrap map-asset-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>序号</th>
+                    <th>NodeID</th>
+                    <th>点位名称</th>
+                    <th>点位类型<button class="map-asset-filter-trigger" data-map-asset-filter-open="siteType" aria-label="按点位类型过滤">筛</button></th>
+                    <th>区域<button class="map-asset-filter-trigger" data-map-asset-filter-open="district" aria-label="按区域过滤">筛</button></th>
+                    <th>完整性<button class="map-asset-filter-trigger" data-map-asset-filter-open="completeness" aria-label="按完整性过滤">筛</button></th>
+                    <th>MAP-XML<button class="map-asset-filter-trigger" data-map-asset-filter-open="mapXml" aria-label="按 MAP XML 过滤">筛</button></th>
+                    <th>MAP-JSON<button class="map-asset-filter-trigger" data-map-asset-filter-open="mapJson" aria-label="按 MAP JSON 过滤">筛</button></th>
+                    <th>MAP-Excel<button class="map-asset-filter-trigger" data-map-asset-filter-open="signalExcel" aria-label="按 MAP Excel 过滤">筛</button></th>
+                    <th>SVG<button class="map-asset-filter-trigger" data-map-asset-filter-open="svg" aria-label="按 SVG 过滤">筛</button></th>
+                    <th>最新版本</th>
+                  </tr>
+                </thead>
+                <tbody id="mapAssetRows"></tbody>
+              </table>
+            </div>
+            <aside class="surface map-asset-detail" id="mapAssetDetail">
+              <div class="empty-detail">选择一个路口查看文件、版本和 SVG 预览</div>
+            </aside>
+          </div>
+          <div class="map-asset-filter-popover" id="mapAssetFilterPopover" hidden></div>
+        </section>
+
         <section class="panel" id="imports">
           <div class="section-head">
             <div>
@@ -406,7 +453,6 @@
               <table>
                 <thead>
                   <tr>
-                    <th>序号</th>
                     <th>点位/位置</th>
                     <th>区域</th>
                     <th>设备类型</th>

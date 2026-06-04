@@ -14,15 +14,36 @@ const state = {
   opsCalendarMode: "month",
   opsCalendarCursor: "2026-05",
   visualTheme: "macos",
+  mapAssetColumnFilters: {
+    siteType: [],
+    district: [],
+    completeness: [],
+    mapXml: [],
+    mapJson: [],
+    signalExcel: [],
+    svg: [],
+  },
+  activeMapAssetFilter: null,
+  selectedMapAssetId: null,
 };
 
 const data = window.PROTOTYPE_DATA;
 const sites = data.sites;
+const sitesByNodeId = new Map(sites.map((site) => [String(site.nodeId || "").trim(), site]));
 const contracts = data.contracts;
 const roadsideStatusState = {
   currentDate: window.ROADSIDE_STATUS_DATA?.importDate || "2026-05-18",
   currentRows: normalizeRoadsideStatusRows(window.ROADSIDE_STATUS_DATA?.rows || []),
   archives: [],
+};
+const mapAssetState = {
+  loading: true,
+  error: "",
+  root: "",
+  generatedAt: "",
+  summary: null,
+  intersections: [],
+  previewDrag: null,
 };
 const ROADSIDE_STATUS_STORAGE_KEY = "wuxi-roadside-status-state-v1";
 const VISUAL_THEME_STORAGE_KEY = "wuxi-project-visual-theme-v1";
@@ -117,6 +138,7 @@ const pageHeaders = {
   overview: ["项目总览", "从总览页直接导入点位库和设备安装位置表"],
   sites: ["点位管理", "表格、卡片和地图三种视图共用筛选条件"],
   devices: ["设备管理", "按设备类型逐个展示，支持点位、安装位置、供应商、合同和履约状态穿透"],
+  mapAssets: ["地图资产", "按路口聚合 MAP、RSI、信号机 Excel 和 SVG 预览，支持完整性校核与文件穿透"],
   imports: ["导入中心", "点位管理表、设备管理表、路侧设备状态表、合同和资料导入的预览、校验、确认与报告"],
   coordinates: ["坐标异常", "业务页面以 GCJ-02 为准；CGCS2000 仅作为原始数据审计字段保存"],
   contracts: ["合同管理", "合同流图谱、天安前向合同、天安后向合同、设备级合同明细和履约节点"],
@@ -250,6 +272,7 @@ function setPanel(panelId) {
   renderPageHeader();
   if (panelId === "overview") requestAnimationFrame(renderOverviewMap);
   if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => renderMap($("#siteMap"), filteredSites()));
+  if (panelId === "mapAssets") renderMapAssets();
   if (panelId === "coordinates") requestAnimationFrame(renderCoordinateIssues);
   if (panelId === "ops") requestAnimationFrame(renderOps);
 }
@@ -258,6 +281,501 @@ function renderPageHeader() {
   const [title, subtitle] = pageHeaders[state.panel] || pageHeaders.overview;
   $("#pageTitle").textContent = title;
   $("#pageSubtitle").textContent = subtitle;
+}
+
+function categoryLabel(category) {
+  const labels = {
+    map_xml: "MAP XML",
+    map_json: "MAP JSON",
+    map_svg: "SVG 预览",
+    rsi_xml: "RSI XML",
+    rsi_json: "RSI JSON",
+    signal_excel: "信号机 Excel",
+  };
+  return labels[category] || category || "其他";
+}
+
+function mapAssetFileLabel(file) {
+  if (file.category === "map_svg" && file.folder === "map_xml") return "MAP XML TO SVG";
+  if (file.category === "map_svg" && file.folder === "map_json") return "MAP JSON TO SVG";
+  if (file.category === "signal_excel") return "信号机 EXCEL";
+  return categoryLabel(file.category);
+}
+
+function mapAssetFileRank(file) {
+  if (file.category === "map_xml") return 1;
+  if (file.category === "map_svg" && file.folder === "map_xml") return 2;
+  if (file.category === "map_json") return 3;
+  if (file.category === "map_svg" && file.folder === "map_json") return 4;
+  if (file.category === "signal_excel") return 5;
+  if (file.category === "rsi_xml") return 6;
+  if (file.category === "rsi_json") return 7;
+  return 20;
+}
+
+function orderedMapAssetFiles(asset) {
+  return [...(asset.files || [])].sort((a, b) => mapAssetFileRank(a) - mapAssetFileRank(b) || String(a.fileName).localeCompare(String(b.fileName), "zh-CN"));
+}
+
+function mapAssetFileByPath(asset, relativePath) {
+  return (asset.files || []).find((file) => file.relativePath === relativePath);
+}
+
+function formatAssetVersion(value) {
+  const text = toText(value);
+  if (!text) return "-";
+  const compact = text.match(/^(20\d{2})(\d{2})(\d{2})T?(\d{2})?(\d{2})?/);
+  if (compact) {
+    const [, year, month, day, hour, minute] = compact;
+    return `${year}-${month}-${day}${hour ? ` ${hour}:${minute || "00"}` : ""}`;
+  }
+  if (text.includes("T")) return text.slice(0, 16).replace("T", " ");
+  return text;
+}
+
+function mapAssetSite(asset) {
+  return sitesByNodeId.get(String(asset?.nodeId || "").trim()) || null;
+}
+
+function mapAssetDisplayName(asset) {
+  return mapAssetSite(asset)?.name || asset.name || "-";
+}
+
+function mapAssetDisplayType(asset) {
+  return mapAssetSite(asset)?.type || "未匹配";
+}
+
+async function loadMapAssets(force = false) {
+  mapAssetState.loading = true;
+  mapAssetState.error = "";
+  renderMapAssets();
+  try {
+    const response = await fetch(`/api/map-assets${force ? `?t=${Date.now()}` : ""}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    mapAssetState.root = payload.root || "";
+    mapAssetState.generatedAt = payload.generatedAt || "";
+    mapAssetState.summary = payload.summary || null;
+    mapAssetState.intersections = Array.isArray(payload.intersections) ? payload.intersections : [];
+    if (!state.selectedMapAssetId && mapAssetState.intersections.length) {
+      const incomplete = mapAssetState.intersections.find((item) => item.status !== "完整");
+      state.selectedMapAssetId = (incomplete || mapAssetState.intersections[0]).id;
+    }
+  } catch (error) {
+    console.error("Map asset load failed.", error);
+    mapAssetState.error = error.message || "地图资产目录读取失败";
+  } finally {
+    mapAssetState.loading = false;
+    renderMapAssets();
+  }
+}
+
+function mapAssetCompletenessText(asset) {
+  return asset.missing?.length ? `缺${asset.missing.join("、")}` : "文件齐套";
+}
+
+const mapAssetFilterLabels = {
+  siteType: "点位类型",
+  district: "区域",
+  completeness: "完整性",
+  mapXml: "MAP-XML",
+  mapJson: "MAP-JSON",
+  signalExcel: "MAP-Excel",
+  svg: "SVG",
+};
+
+function mapAssetFilterValues(key) {
+  if (key === "siteType") return Array.from(new Set(mapAssetState.intersections.map(mapAssetDisplayType))).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), "zh-CN"));
+  if (key === "district") return Array.from(new Set(mapAssetState.intersections.map((asset) => asset.district))).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), "zh-CN"));
+  if (key === "completeness") return Array.from(new Set(mapAssetState.intersections.map(mapAssetCompletenessText))).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), "zh-CN"));
+  return ["有", "无"];
+}
+
+function mapAssetMultiFilterPass(value, selectedValues) {
+  if (!selectedValues?.length) return true;
+  return selectedValues.includes(value);
+}
+
+function mapAssetCountFilterPass(count, selectedValues) {
+  if (!selectedValues?.length) return true;
+  if (selectedValues.includes("有") && count > 0) return true;
+  if (selectedValues.includes("无") && count === 0) return true;
+  return false;
+}
+
+function filteredMapAssets() {
+  const q = state.query.trim().toLowerCase();
+  const filters = state.mapAssetColumnFilters;
+  return mapAssetState.intersections.filter((asset) => {
+    const completeness = mapAssetCompletenessText(asset);
+    const text = `${asset.nodeId} ${mapAssetDisplayName(asset)} ${mapAssetDisplayType(asset)} ${asset.name} ${asset.district} ${asset.status} ${asset.missing?.join(" ")}`.toLowerCase();
+    const siteTypeOk = mapAssetMultiFilterPass(mapAssetDisplayType(asset), filters.siteType);
+    const districtOk = mapAssetMultiFilterPass(asset.district, filters.district);
+    const completenessOk = mapAssetMultiFilterPass(completeness, filters.completeness);
+    const mapXmlOk = mapAssetCountFilterPass(asset.counts.map_xml || 0, filters.mapXml);
+    const mapJsonOk = mapAssetCountFilterPass(asset.counts.map_json || 0, filters.mapJson);
+    const signalExcelOk = mapAssetCountFilterPass(asset.counts.signal_excel || 0, filters.signalExcel);
+    const svgOk = mapAssetCountFilterPass(asset.counts.map_svg || 0, filters.svg);
+    return siteTypeOk && districtOk && completenessOk && mapXmlOk && mapJsonOk && signalExcelOk && svgOk && (!q || text.includes(q));
+  });
+}
+
+function renderMapAssetColumnFilters() {
+  $$("[data-map-asset-filter-open]").forEach((button) => {
+    const key = button.dataset.mapAssetFilterOpen;
+    const count = state.mapAssetColumnFilters[key]?.length || 0;
+    button.classList.toggle("active", count > 0);
+    button.textContent = count ? `筛${count}` : "筛";
+  });
+  renderMapAssetFilterPopover();
+}
+
+function renderMapAssetFilterPopover() {
+  const popover = $("#mapAssetFilterPopover");
+  if (!popover) return;
+  const key = state.activeMapAssetFilter;
+  if (!key) {
+    popover.hidden = true;
+    popover.innerHTML = "";
+    return;
+  }
+  const trigger = $(`[data-map-asset-filter-open="${key}"]`);
+  if (!trigger) {
+    popover.hidden = true;
+    return;
+  }
+  const selected = state.mapAssetColumnFilters[key] || [];
+  const values = mapAssetFilterValues(key);
+  const columnRect = trigger.closest("th")?.getBoundingClientRect() || trigger.getBoundingClientRect();
+  popover.hidden = false;
+  const width = Math.max(140, Math.round(columnRect.width));
+  popover.style.width = `${width}px`;
+  popover.style.left = `${Math.min(window.innerWidth - width - 12, Math.max(12, columnRect.left))}px`;
+  popover.style.top = `${columnRect.bottom + 6}px`;
+  popover.innerHTML = `
+    <div class="map-asset-filter-popover-head">
+      <strong>${mapAssetFilterLabels[key]}</strong>
+      <button type="button" data-map-asset-filter-clear="${key}">清空</button>
+    </div>
+    <div class="map-asset-filter-options">
+      ${values
+        .map(
+          (value) => `
+            <label>
+              <input type="checkbox" data-map-asset-filter-option="${key}" value="${value}" ${selected.includes(value) ? "checked" : ""} />
+              <span>${value}</span>
+            </label>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderMapAssetMetrics() {
+  const target = $("#mapAssetMetrics");
+  if (!target) return;
+  const summary = mapAssetState.summary;
+  if (!summary) {
+    target.innerHTML = "";
+    return;
+  }
+  const cards = [
+    ["路口资产", summary.intersectionTotal, "按区域 + NodeID 聚合"],
+    ["源文件", summary.fileTotal, "XML / JSON / XLSX / SVG"],
+    ["完整资产", summary.completeTotal, "MAP + RSI + 信号机 + SVG"],
+    ["待补全", summary.incompleteTotal, "需继续校核或补文件"],
+  ];
+  target.innerHTML = cards
+    .map(
+      ([title, value, note]) => `
+        <div class="metric">
+          <span>${title}</span>
+          <strong>${formatNumber(value)}</strong>
+          <small>${note}</small>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderMapAssetRows() {
+  const target = $("#mapAssetRows");
+  if (!target) return;
+  const rows = filteredMapAssets();
+  $("#mapAssetCount").textContent = mapAssetState.loading ? "扫描中" : `${formatNumber(rows.length)} / ${formatNumber(mapAssetState.intersections.length)} 个路口`;
+  target.innerHTML = rows
+    .map((asset, index) => {
+      const selected = asset.id === state.selectedMapAssetId;
+      const completenessText = mapAssetCompletenessText(asset);
+      const completenessClass = asset.missing?.length ? "warn" : "done";
+      return `
+        <tr class="${selected ? "selected-row" : ""}" data-open-map-asset="${asset.id}">
+          <td class="map-asset-index">${index + 1}</td>
+          <td><strong>${asset.nodeId}</strong></td>
+          <td><strong>${mapAssetDisplayName(asset)}</strong></td>
+          <td>${mapAssetDisplayType(asset)}</td>
+          <td>${asset.district}</td>
+          <td><span class="status-pill ${completenessClass}">${completenessText}</span></td>
+          <td>${asset.counts.map_xml || 0}</td>
+          <td>${asset.counts.map_json || 0}</td>
+          <td>${asset.counts.signal_excel || 0}</td>
+          <td>${asset.counts.map_svg || 0} SVG</td>
+          <td>${formatAssetVersion(asset.latestVersion)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  renderMapAssetColumnHandles();
+}
+
+function renderMapAssetColumnHandles() {
+  const table = $(".map-asset-table table");
+  if (!table) return;
+  table.querySelectorAll(".column-resizer").forEach((handle) => handle.remove());
+  Array.from(table.querySelectorAll("th")).forEach((th, index, headers) => {
+    if (index === headers.length - 1) return;
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "column-resizer";
+    handle.setAttribute("aria-label", `调整 ${th.textContent.trim()} 列宽`);
+    handle.dataset.columnIndex = String(index);
+    th.appendChild(handle);
+  });
+}
+
+function startMapAssetColumnResize(event, handle) {
+  event.preventDefault();
+  event.stopPropagation();
+  const table = $(".map-asset-table table");
+  const th = handle.closest("th");
+  if (!table || !th) return;
+  const columnIndex = Number(handle.dataset.columnIndex);
+  const startX = event.clientX;
+  const startWidth = th.getBoundingClientRect().width;
+  const cells = Array.from(table.querySelectorAll(`tr > *:nth-child(${columnIndex + 1})`));
+  const onMove = (moveEvent) => {
+    const width = Math.max(72, startWidth + moveEvent.clientX - startX);
+    cells.forEach((cell) => {
+      cell.style.width = `${width}px`;
+      cell.style.minWidth = `${width}px`;
+      cell.style.maxWidth = `${width}px`;
+    });
+  };
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    document.body.classList.remove("resizing-column");
+  };
+  document.body.classList.add("resizing-column");
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+function getMapAssetPreviewTransform(preview) {
+  return {
+    scale: Number(preview.dataset.scale || 1),
+    x: Number(preview.dataset.x || 0),
+    y: Number(preview.dataset.y || 0),
+  };
+}
+
+function setMapAssetPreviewTransform(preview, transform) {
+  const img = preview.querySelector("img");
+  if (!img) return;
+  const scale = Math.min(8, Math.max(0.5, transform.scale));
+  const x = Number.isFinite(transform.x) ? transform.x : 0;
+  const y = Number.isFinite(transform.y) ? transform.y : 0;
+  preview.dataset.scale = String(scale);
+  preview.dataset.x = String(x);
+  preview.dataset.y = String(y);
+  img.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+}
+
+function handleMapAssetPreviewWheel(event, preview) {
+  const img = preview.querySelector("img");
+  if (!img) return;
+  event.preventDefault();
+  const current = getMapAssetPreviewTransform(preview);
+  const nextScale = Math.min(8, Math.max(0.5, current.scale * (event.deltaY < 0 ? 1.12 : 0.88)));
+  const rect = preview.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const pointerX = event.clientX - centerX;
+  const pointerY = event.clientY - centerY;
+  const ratio = nextScale / current.scale;
+  setMapAssetPreviewTransform(preview, {
+    scale: nextScale,
+    x: pointerX - (pointerX - current.x) * ratio,
+    y: pointerY - (pointerY - current.y) * ratio,
+  });
+}
+
+function startMapAssetPreviewDrag(event, preview) {
+  if (!preview.querySelector("img")) return;
+  event.preventDefault();
+  const current = getMapAssetPreviewTransform(preview);
+  mapAssetState.previewDrag = {
+    preview,
+    startX: event.clientX,
+    startY: event.clientY,
+    x: current.x,
+    y: current.y,
+  };
+  preview.classList.add("dragging");
+  document.body.classList.add("dragging-map-preview");
+}
+
+function moveMapAssetPreviewDrag(event) {
+  const drag = mapAssetState.previewDrag;
+  if (!drag) return;
+  setMapAssetPreviewTransform(drag.preview, {
+    scale: getMapAssetPreviewTransform(drag.preview).scale,
+    x: drag.x + event.clientX - drag.startX,
+    y: drag.y + event.clientY - drag.startY,
+  });
+}
+
+function stopMapAssetPreviewDrag() {
+  const drag = mapAssetState.previewDrag;
+  if (!drag) return;
+  drag.preview.classList.remove("dragging");
+  document.body.classList.remove("dragging-map-preview");
+  mapAssetState.previewDrag = null;
+}
+
+function renderMapAssetDetail() {
+  const target = $("#mapAssetDetail");
+  if (!target) return;
+  const asset = mapAssetState.intersections.find((item) => item.id === state.selectedMapAssetId) || filteredMapAssets()[0];
+  if (!asset) {
+    target.innerHTML = `<div class="empty-detail">${mapAssetState.loading ? "正在扫描地图资产目录" : "暂无匹配地图资产"}</div>`;
+    return;
+  }
+  state.selectedMapAssetId = asset.id;
+  const mapXmlPreviewUrl = asset.mapXmlSvgPath ? `/api/map-assets/file?path=${encodeURIComponent(asset.mapXmlSvgPath)}` : "";
+  const mapJsonPreviewUrl = asset.mapJsonSvgPath ? `/api/map-assets/file?path=${encodeURIComponent(asset.mapJsonSvgPath)}` : "";
+  const mapXmlSvgFile = mapAssetFileByPath(asset, asset.mapXmlSvgPath);
+  const mapJsonSvgFile = mapAssetFileByPath(asset, asset.mapJsonSvgPath);
+  const displayName = mapAssetDisplayName(asset);
+  target.innerHTML = `
+    <div class="map-asset-detail-head">
+      <span>${asset.district} / NodeID ${asset.nodeId}</span>
+      <h3>${displayName}</h3>
+      <strong class="status-pill ${asset.status === "完整" ? "done" : "warn"}">${asset.missing?.length ? `缺${asset.missing.join("、")}` : "文件齐套"}</strong>
+      <a class="primary-btn map-asset-export" href="/api/map-assets/export?id=${encodeURIComponent(asset.id)}">导出当前点位地图资产</a>
+    </div>
+    <div class="map-asset-preview-stack">
+      <section class="map-asset-preview-block">
+        <h4>map_xml 目录 SVG</h4>
+        <p>${mapXmlSvgFile ? `由 ${mapXmlSvgFile.fileName} 生成` : "未找到 map_xml 目录 SVG 文件"}</p>
+        <div class="map-asset-preview" data-map-asset-preview>
+          ${
+            mapXmlPreviewUrl
+              ? `<img src="${mapXmlPreviewUrl}" alt="${displayName} map_xml 目录 SVG 预览" />`
+              : `<div class="empty-detail">map_xml 目录没有 SVG 预览文件</div>`
+          }
+        </div>
+      </section>
+      <section class="map-asset-preview-block">
+        <h4>map_json 目录 SVG</h4>
+        <p>${mapJsonSvgFile ? `由 ${mapJsonSvgFile.fileName} 生成` : "未找到 map_json 目录 SVG 文件"}</p>
+        <div class="map-asset-preview" data-map-asset-preview>
+          ${
+            mapJsonPreviewUrl
+              ? `<img src="${mapJsonPreviewUrl}" alt="${displayName} map_json 目录 SVG 预览" />`
+              : `<div class="empty-detail">map_json 目录没有 SVG 预览文件</div>`
+          }
+        </div>
+      </section>
+    </div>
+    <div class="map-asset-file-list">
+      <div class="map-asset-file-title">点位文件</div>
+      ${orderedMapAssetFiles(asset)
+        .map(
+          (file) => `
+            <a href="/api/map-assets/file?path=${encodeURIComponent(file.relativePath)}" target="_blank" rel="noreferrer">
+              <strong>${mapAssetFileLabel(file)}</strong>
+              <span>${file.fileName}</span>
+              <small>${formatAssetVersion(file.version || file.modifiedAt)} / ${(file.size / 1024).toFixed(1)} KB</small>
+            </a>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function exportMapAssetList(assets, fileName, sheetName, emptyMessage) {
+  if (!assets.length) {
+    alert(emptyMessage);
+    return;
+  }
+  const rows = [
+    ["序号", "NodeID", "点位名称", "点位类型", "区域", "缺失项", "MAP-XML", "MAP-JSON", "MAP-Excel", "SVG", "RSI-XML", "RSI-JSON", "源文件数", "最新版本"],
+    ...assets.map((asset, index) => [
+      index + 1,
+      asset.nodeId,
+      mapAssetDisplayName(asset),
+      mapAssetDisplayType(asset),
+      asset.district,
+      asset.missing?.length ? asset.missing.join("、") : "文件齐套",
+      asset.counts.map_xml || 0,
+      asset.counts.map_json || 0,
+      asset.counts.signal_excel || 0,
+      asset.counts.map_svg || 0,
+      asset.counts.rsi_xml || 0,
+      asset.counts.rsi_json || 0,
+      asset.fileTotal || asset.files?.length || 0,
+      formatAssetVersion(asset.latestVersion),
+    ]),
+  ];
+  writeWorkbookFile(fileName, sheetName, rows, [
+    { wch: 8 },
+    { wch: 12 },
+    { wch: 34 },
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 24 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 11 },
+    { wch: 8 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 18 },
+  ]);
+}
+
+function exportAllMapAssets() {
+  exportMapAssetList(mapAssetState.intersections, "全部地图资产点位列表.xlsx", "全部地图资产", "当前地图资产索引为空，请先扫描目录。");
+}
+
+function exportIncompleteMapAssets() {
+  exportMapAssetList(
+    mapAssetState.intersections.filter((asset) => asset.missing?.length),
+    "不完整地图资产点位列表.xlsx",
+    "不完整地图资产",
+    "当前地图资产索引中没有完整性缺失的点位。",
+  );
+}
+
+function renderMapAssets() {
+  const status = $("#mapAssetStatus");
+  if (!status) return;
+  status.classList.toggle("error", Boolean(mapAssetState.error));
+  if (mapAssetState.error) {
+    status.textContent = `地图资产读取失败：${mapAssetState.error}`;
+  } else if (mapAssetState.loading) {
+    status.textContent = "正在扫描地图资产目录，首次扫描会读取 XML、JSON、XLSX、SVG 文件索引";
+  } else {
+    status.textContent = `数据目录：${mapAssetState.root} · 索引时间：${formatAssetVersion(mapAssetState.generatedAt)}`;
+  }
+  renderMapAssetColumnFilters();
+  renderMapAssetMetrics();
+  renderMapAssetRows();
+  renderMapAssetDetail();
 }
 
 function loadVisualTheme() {
@@ -2325,6 +2843,7 @@ function bindEvents() {
     state.query = event.target.value;
     renderSites();
     renderDevices();
+    renderMapAssets();
   });
   $("#districtFilter").addEventListener("change", (event) => {
     state.district = event.target.value;
@@ -2413,6 +2932,35 @@ function bindEvents() {
       renderUnmatchedRows();
       return;
     }
+    const filterTrigger = event.target.closest("[data-map-asset-filter-open]");
+    if (filterTrigger) {
+      const key = filterTrigger.dataset.mapAssetFilterOpen;
+      state.activeMapAssetFilter = state.activeMapAssetFilter === key ? null : key;
+      renderMapAssetColumnFilters();
+      return;
+    }
+    const filterClear = event.target.closest("[data-map-asset-filter-clear]");
+    if (filterClear) {
+      state.mapAssetColumnFilters[filterClear.dataset.mapAssetFilterClear] = [];
+      state.selectedMapAssetId = null;
+      renderMapAssets();
+      return;
+    }
+    const filterOption = event.target.closest("[data-map-asset-filter-option]");
+    if (filterOption) {
+      const key = filterOption.dataset.mapAssetFilterOption;
+      const selected = new Set(state.mapAssetColumnFilters[key] || []);
+      if (filterOption.checked) selected.add(filterOption.value);
+      else selected.delete(filterOption.value);
+      state.mapAssetColumnFilters[key] = Array.from(selected);
+      state.selectedMapAssetId = null;
+      renderMapAssets();
+      return;
+    }
+    if (state.activeMapAssetFilter && !event.target.closest("#mapAssetFilterPopover")) {
+      state.activeMapAssetFilter = null;
+      renderMapAssetColumnFilters();
+    }
     const opsDateButton = event.target.closest("[data-ops-date]");
     if (opsDateButton) {
       state.opsDate = opsDateButton.dataset.opsDate;
@@ -2441,7 +2989,33 @@ function bindEvents() {
     }
     const opener = event.target.closest("[data-open-site]");
     if (opener) openSite(opener.dataset.openSite);
+    const mapAssetOpener = event.target.closest("[data-open-map-asset]");
+    if (mapAssetOpener) {
+      state.selectedMapAssetId = mapAssetOpener.dataset.openMapAsset;
+      renderMapAssets();
+    }
   });
+  document.body.addEventListener("mousedown", (event) => {
+    const handle = event.target.closest(".column-resizer");
+    if (handle) startMapAssetColumnResize(event, handle);
+    const preview = event.target.closest("[data-map-asset-preview]");
+    if (preview) startMapAssetPreviewDrag(event, preview);
+  });
+  document.body.addEventListener(
+    "wheel",
+    (event) => {
+      const preview = event.target.closest("[data-map-asset-preview]");
+      if (preview) handleMapAssetPreviewWheel(event, preview);
+    },
+    { passive: false },
+  );
+  document.body.addEventListener("dblclick", (event) => {
+    const preview = event.target.closest("[data-map-asset-preview]");
+    if (preview) setMapAssetPreviewTransform(preview, { scale: 1, x: 0, y: 0 });
+  });
+  document.addEventListener("mousemove", moveMapAssetPreviewDrag);
+  document.addEventListener("mouseup", stopMapAssetPreviewDrag);
+  document.addEventListener("mouseleave", stopMapAssetPreviewDrag);
   document.body.addEventListener("dragstart", (event) => {
     const dragDate = event.target.closest("[data-ops-drag-date]");
     if (!dragDate) return;
@@ -2488,6 +3062,12 @@ function bindEvents() {
     $("#unmatchedPanel").classList.toggle("open");
     $("#unmatchedTableWrap").classList.toggle("open");
   });
+  $("#refreshMapAssets").addEventListener("click", () => loadMapAssets(true));
+  $("#mapAssetRoot").addEventListener("click", () => {
+    alert(mapAssetState.root || "地图资产目录尚未读取。");
+  });
+  $("#exportAllMapAssets").addEventListener("click", exportAllMapAssets);
+  $("#exportIncompleteMapAssets").addEventListener("click", exportIncompleteMapAssets);
   $("#overviewUnmatchedCard").addEventListener("click", () => {
     setPanel("devices");
     $("#unmatchedPanel").classList.add("open");
@@ -2536,6 +3116,7 @@ async function init() {
   renderDocuments();
   renderOps();
   bindEvents();
+  loadMapAssets();
 }
 
 init();
