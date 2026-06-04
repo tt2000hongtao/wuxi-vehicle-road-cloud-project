@@ -34,6 +34,15 @@ const state = {
   activeMapAssetFilter: null,
   activeSiteFilter: null,
   selectedMapAssetId: null,
+  documentAssets: {
+    loading: true,
+    error: "",
+    reportPath: "",
+    batchNo: "",
+    generatedAt: "",
+    summary: null,
+    records: [],
+  },
 };
 
 const data = window.PROTOTYPE_DATA;
@@ -62,14 +71,18 @@ const persistenceState = {
   lastSavedAt: null,
 };
 const unmatchedItems = buildUnmatchedItems();
-const documentBuckets = [
-  ["勘察资料", "点位踏勘、杆件条件、机房资源", 128],
-  ["施工照片", "安装过程、开箱验收、现场问题", 468],
-  ["验收资料", "到货查验、入库、开箱、竣工验收", 216],
-  ["合同附件", "前向合同、后向合同、分项包和设备明细", 74],
-  ["运维工单", "异常闭环、变更记录、设备维护", 39],
-  ["图纸报告", "设计图、接线表、测评报告", 93],
-];
+const documentCategoryMeta = {
+  contract: ["合同类", "总集、销售、采购、补充协议、付款申请", "contract"],
+  meeting: ["会议类", "会议纪要、周例会、专题会、纪要确认单", "meeting"],
+  change: ["变更类", "设计、工程、需求、价格、签证变更", "change"],
+  plan: ["计划类", "项目计划、施工计划、进度计划、交付计划", "plan"],
+  warehouse: ["物资类", "出入库单、到货单、领料单、设备清单", "warehouse"],
+  construction: ["施工类", "安装签证、施工记录、照片、接线表、验收单", "construction"],
+  map_asset: ["地图类", "MAP、RSI、信号机配置、SVG、质检报告", "map"],
+  ops: ["运维类", "工单、巡检、故障、整改闭环资料", "ops"],
+  management: ["管理类", "汇报材料、审批单、内部说明、风险清单", "management"],
+  unclassified: ["未分类", "需要人工补充分类型和业务对象关联", "unclassified"],
+};
 const importErrors = [
   { sheet: "点位管理表", row: 148, level: "warning", code: "DISTRICT_MERGED", message: "经开区已归并为新吴区，原值进入 original_district 审计字段。" },
   { sheet: "点位管理表", row: 233, level: "error", code: "NODE_ID_EMPTY", message: "NodeID 为空，进入待补全治理，不计入正式点位数。" },
@@ -152,7 +165,7 @@ const pageHeaders = {
   coordinates: ["坐标异常", "业务页面以 GCJ-02 为准；CGCS2000 仅作为原始数据审计字段保存"],
   contracts: ["合同管理", "合同流图谱、天安前向合同、天安后向合同、设备级合同明细和履约节点"],
   warehouse: ["出入库管理", "一期原型展示送货、入库、领料和安装数量差异"],
-  documents: ["资料管理", "围绕点位、设备、合同、验收和运维对象归集文档、照片和报告"],
+  documents: ["文档资产中心", "元数据、版本、业务对象关联、解析质检与云迁移兼容存储"],
   ops: ["运维管理", "每日路侧设备运行状态快照、异常统计、离线设备地图和历史日历"],
 };
 
@@ -174,6 +187,67 @@ function buildUnmatchedItems() {
       target,
     };
   });
+}
+
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes >= 1024 ** 4) return `${(bytes / 1024 ** 4).toFixed(2)} TB`;
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+function documentCategoryLabel(category) {
+  return documentCategoryMeta[category]?.[0] || category || "未分类";
+}
+
+function statusLabel(value) {
+  const labels = {
+    draft: "草稿",
+    effective: "有效",
+    archived: "已归档",
+    voided: "已作废",
+    pending_review: "待审核",
+    pending: "待解析",
+    success: "成功",
+    failed: "失败",
+    skipped: "跳过",
+    normal: "正常",
+    warning: "待治理",
+    error: "异常",
+  };
+  return labels[value] || value || "-";
+}
+
+async function loadDocumentAssets() {
+  state.documentAssets.loading = true;
+  state.documentAssets.error = "";
+  renderDocuments();
+  try {
+    const response = await fetch("/api/document-assets", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    state.documentAssets = {
+      loading: false,
+      error: "",
+      reportPath: payload.reportPath || "",
+      batchNo: payload.batchNo || "",
+      generatedAt: payload.generatedAt || "",
+      summary: payload.summary || {},
+      records: payload.records || [],
+    };
+  } catch (error) {
+    state.documentAssets = {
+      ...state.documentAssets,
+      loading: false,
+      error: error.message || "文档资产报告读取失败",
+      summary: null,
+      records: [],
+    };
+  }
+  renderDocuments();
 }
 
 function formatNumber(value) {
@@ -462,6 +536,7 @@ function setPanel(panelId) {
   if (panelId === "sites") requestAnimationFrame(applySiteViewLayoutSettled);
   if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => { applySiteViewLayoutSettled(); renderMap($("#siteMap"), filteredSites()); });
   if (panelId === "mapAssets") renderMapAssets();
+  if (panelId === "documents") renderDocuments();
   if (panelId === "coordinates") requestAnimationFrame(renderCoordinateIssues);
   if (panelId === "ops") requestAnimationFrame(renderOps);
 }
@@ -2201,18 +2276,81 @@ function renderCoordinateIssues() {
 }
 
 function renderDocuments() {
-  $("#documentGrid").innerHTML = documentBuckets
-    .map(
-      ([title, note, count]) => `
-        <article class="document-card">
-          <span>${title}</span>
-          <strong>${formatNumber(count)}</strong>
-          <p>${note}</p>
-          <button class="link-btn">查看资料</button>
+  const docState = state.documentAssets;
+  const summary = docState.summary || { categoryCounts: {}, fileCount: 0, totalSizeBytes: 0, duplicateFileCount: 0, unlinkedFileCount: 0 };
+  const categoryCounts = summary.categoryCounts || {};
+  const status = $("#documentAssetStatus");
+  if (status) {
+    status.className = `document-asset-status${docState.error ? " error" : ""}`;
+    status.textContent = docState.loading
+      ? "正在读取文档资产扫描报告……"
+      : docState.error
+        ? `读取失败：${docState.error}`
+        : `批次 ${docState.batchNo || "-"} · ${docState.generatedAt || "-"} · ${docState.reportPath || "sample"}`;
+  }
+
+  const metrics = $("#documentMetrics");
+  if (metrics) {
+    metrics.innerHTML = [
+      ["文件总数", formatNumber(summary.fileCount), "元数据记录，不加载原件"],
+      ["容量规模", formatBytes(summary.totalSizeBytes), "用于评估本地库/NAS/对象存储"],
+      ["重复文件", formatNumber(summary.duplicateFileCount), "sha256 去重治理"],
+      ["未关联", formatNumber(summary.unlinkedFileCount), "需补充业务对象关系"],
+    ]
+      .map(([label, value, note]) => `
+        <article class="metric document-metric">
+          <span>${label}</span>
+          <strong>${value}</strong>
+          <small>${note}</small>
         </article>
-      `,
-    )
-    .join("");
+      `)
+      .join("");
+  }
+
+  const grid = $("#documentGrid");
+  if (grid) {
+    const categories = Object.entries(documentCategoryMeta);
+    grid.innerHTML = categories
+      .map(([key, [title, note]]) => `
+        <article class="document-card ${key === "unclassified" && (categoryCounts[key] || 0) ? "warning" : ""}">
+          <span>${title}</span>
+          <strong>${formatNumber(categoryCounts[key] || 0)}</strong>
+          <p>${note}</p>
+          <button class="link-btn" type="button">${key === "unclassified" ? "治理分类" : "查看元数据"}</button>
+        </article>
+      `)
+      .join("");
+  }
+
+  const categoryCount = $("#documentCategoryCount");
+  if (categoryCount) categoryCount.textContent = `${Object.keys(categoryCounts).length} 类已有文件`;
+
+  const rows = $("#documentRows");
+  if (rows) {
+    const records = (docState.records || []).slice(0, 20);
+    rows.innerHTML = records.length
+      ? records
+          .map((record) => {
+            const relation = record.relation ? `${record.relation.objectType}:${record.relation.objectId}` : "未关联";
+            return `
+              <tr>
+                <td title="${record.storageKey || ""}">${record.fileName || "-"}</td>
+                <td>${documentCategoryLabel(record.documentCategory)}</td>
+                <td>${(record.fileExt || "-").toUpperCase()}</td>
+                <td>${formatBytes(record.fileSizeBytes)}</td>
+                <td>${relation}</td>
+                <td><span class="status-pill ${record.reviewStatus === "effective" ? "done" : "warn"}">${statusLabel(record.reviewStatus)}</span></td>
+                <td><span class="status-pill ${record.parseStatus === "success" ? "done" : "warn"}">${statusLabel(record.parseStatus)}</span></td>
+                <td><span class="status-pill ${record.qualityStatus === "normal" ? "done" : "warn"}">${statusLabel(record.qualityStatus)}</span></td>
+              </tr>
+            `;
+          })
+          .join("")
+      : `<tr><td colspan="8">暂无扫描记录。运行 tools/scan_document_assets.py 生成 document_assets/import_batches/latest-document-scan.json。</td></tr>`;
+  }
+
+  const recordCount = $("#documentRecordCount");
+  if (recordCount) recordCount.textContent = `展示 ${Math.min((docState.records || []).length, 20)} / ${formatNumber(summary.fileCount)} 条`;
 }
 
 function isRoadsideEnabled(device) {
@@ -3284,6 +3422,10 @@ function bindEvents() {
   });
   $("#exportAllMapAssets").addEventListener("click", exportAllMapAssets);
   $("#exportIncompleteMapAssets").addEventListener("click", exportIncompleteMapAssets);
+  $("#refreshDocumentAssets")?.addEventListener("click", loadDocumentAssets);
+  $("#showDocumentStorageRule")?.addEventListener("click", () => {
+    alert("文档原件进入 document_assets/raw 或对象存储；数据库保存 storage_key、sha256、版本、业务关系、解析结果和审计，不把大文件写入前端 data.js。");
+  });
   $("#overviewUnmatchedCard").addEventListener("click", () => {
     setPanel("devices");
     $("#unmatchedPanel").classList.add("open");
@@ -3338,6 +3480,7 @@ async function init() {
   renderOps();
   bindEvents();
   loadMapAssets();
+  loadDocumentAssets();
 }
 
 init();

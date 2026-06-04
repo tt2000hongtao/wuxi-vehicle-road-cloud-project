@@ -1,0 +1,72 @@
+{
+  "batchNo": "SAMPLE-20260604-DOCUMENT-ASSETS",
+  "projectCode": "wuxi-cv2x",
+  "generatedAt": "2026-06-04T00:00:00+08:00",
+  "summary": {
+    "fileCount": 1018,
+    "totalSizeBytes": 12884901888,
+    "duplicateFileCount": 37,
+    "unlinkedFileCount": 126,
+    "categoryCounts": {
+      "contract": 92,
+      "construction": 438,
+      "warehouse": 156,
+      "meeting": 84,
+      "change": 51,
+      "map_asset": 144,
+      "ops": 43,
+      "management": 10
+    },
+    "extensionCounts": {
+      "pdf": 286,
+      "docx": 173,
+      "xlsx": 221,
+      "jpg": 248,
+      "xml": 38,
+      "json": 38,
+      "svg": 14
+    },
+    "errorCount": 0
+  },
+  "records": [
+    {
+      "fileName": "后项采购合同-万集科技-RSU设备.pdf",
+      "fileExt": "pdf",
+      "fileSizeBytes": 18432000,
+      "sha256": "sample-contract-0001",
+      "documentCategory": "contract",
+      "storageProvider": "local",
+      "storageKey": "raw/wuxi-cv2x/contract/2026/sa/sample-contract-0001/后项采购合同-万集科技-RSU设备.pdf",
+      "reviewStatus": "effective",
+      "parseStatus": "pending",
+      "qualityStatus": "warning",
+      "relation": { "objectType": "contract", "objectId": "HT-RSU-001", "matchSource": "sample", "confidence": 0.8 }
+    },
+    {
+      "fileName": "NodeID10372-太湖大道北友谊南路西-安装签证.docx",
+      "fileExt": "docx",
+      "fileSizeBytes": 3285000,
+      "sha256": "sample-construction-0001",
+      "documentCategory": "construction",
+      "storageProvider": "local",
+      "storageKey": "raw/wuxi-cv2x/construction/2026/sa/sample-construction-0001/NodeID10372-安装签证.docx",
+      "reviewStatus": "pending_review",
+      "parseStatus": "pending",
+      "qualityStatus": "normal",
+      "relation": { "objectType": "site", "objectId": "10372", "matchSource": "sample", "confidence": 0.9 }
+    },
+    {
+      "fileName": "MAP_24158_惠育路-政和大道-physical.svg",
+      "fileExt": "svg",
+      "fileSizeBytes": 742000,
+      "sha256": "sample-map-0001",
+      "documentCategory": "map_asset",
+      "storageProvider": "local",
+      "storageKey": "raw/wuxi-cv2x/map_asset/2026/sa/sample-map-0001/MAP_24158_惠育路-政和大道-physical.svg",
+      "reviewStatus": "effective",
+      "parseStatus": "success",
+      "qualityStatus": "normal",
+      "relation": { "objectType": "map_asset", "objectId": "24158", "matchSource": "sample", "confidence": 0.95 }
+    }
+  ]
+}

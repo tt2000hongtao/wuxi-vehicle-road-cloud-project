@@ -1091,3 +1091,154 @@ flowchart LR
 | 档案未匹配数 | `site_archive_folder.match_status=unmatched` |
 | 接线表解析失败数 | `signal_wiring_form.parse_status=failed` |
 | 验收单解析失败数 | `site_acceptance_form.parse_status=failed` |
+
+## 8. 文档资产管理 ER 扩展
+
+文档资产管理采用“文件原件存储 + 元数据入库 + 业务对象关系表”的模式。数据库不保存大文件内容，只保存 `storage_key`、哈希、版本、解析结果、访问审计和业务关系。
+
+```mermaid
+erDiagram
+    DOCUMENT_IMPORT_BATCH ||--o{ DOCUMENT_FILE : "batch files"
+    DOCUMENT_FILE ||--o{ DOCUMENT_VERSION : "versions"
+    DOCUMENT_FILE ||--o{ DOCUMENT_RELATION : "business relations"
+    DOCUMENT_FILE ||--o{ DOCUMENT_PARSE_RESULT : "parse results"
+    DOCUMENT_FILE ||--o{ DOCUMENT_TAG_BINDING : "tags"
+    DOCUMENT_TAG ||--o{ DOCUMENT_TAG_BINDING : "tag binding"
+    DOCUMENT_FILE ||--o{ DOCUMENT_ACCESS_LOG : "access logs"
+    DOCUMENT_FILE ||--o{ DOCUMENT_REVIEW_STATUS : "review status"
+
+    DOCUMENT_IMPORT_BATCH {
+        bigint id PK
+        varchar batch_no UK
+        varchar project_code
+        varchar source_root
+        varchar import_mode
+        varchar status
+        int file_count
+        bigint total_size_bytes
+        int duplicate_file_count
+        int parse_success_count
+        int parse_failed_count
+        int unlinked_file_count
+        timestamp started_at
+        timestamp finished_at
+        varchar created_by
+    }
+
+    DOCUMENT_FILE {
+        bigint id PK
+        varchar project_code
+        varchar document_no UK
+        varchar file_name
+        varchar file_ext
+        varchar mime_type
+        bigint file_size_bytes
+        varchar sha256
+        varchar document_category
+        varchar document_subcategory
+        varchar source_batch_no FK
+        varchar source_path
+        varchar storage_provider
+        varchar storage_bucket
+        varchar storage_key
+        int current_version_no
+        varchar review_status
+        varchar archive_status
+        varchar parse_status
+        varchar quality_status
+        timestamp uploaded_at
+        varchar uploaded_by
+        timestamp deleted_at
+    }
+
+    DOCUMENT_VERSION {
+        bigint id PK
+        bigint document_id FK
+        int version_no
+        varchar sha256
+        bigint file_size_bytes
+        varchar storage_key
+        varchar change_reason
+        timestamp created_at
+        varchar created_by
+    }
+
+    DOCUMENT_RELATION {
+        bigint id PK
+        bigint document_id FK
+        varchar object_type
+        varchar object_id
+        varchar object_display_name
+        varchar relation_type
+        decimal confidence
+        varchar match_source
+        timestamp created_at
+        varchar created_by
+    }
+
+    DOCUMENT_PARSE_RESULT {
+        bigint id PK
+        bigint document_id FK
+        int version_no
+        varchar parser_name
+        varchar parse_status
+        text text_excerpt
+        json extracted_fields
+        json quality_issues
+        timestamp parsed_at
+    }
+
+    DOCUMENT_TAG {
+        bigint id PK
+        varchar tag_name
+        varchar tag_group
+    }
+
+    DOCUMENT_TAG_BINDING {
+        bigint id PK
+        bigint document_id FK
+        bigint tag_id FK
+    }
+
+    DOCUMENT_ACCESS_LOG {
+        bigint id PK
+        bigint document_id FK
+        varchar action_type
+        varchar actor
+        varchar client_ip
+        timestamp created_at
+    }
+
+    DOCUMENT_REVIEW_STATUS {
+        bigint id PK
+        bigint document_id FK
+        varchar review_status
+        varchar archive_status
+        varchar comment
+        timestamp reviewed_at
+        varchar reviewed_by
+    }
+```
+
+### 8.1 对象类型枚举
+
+| object_type | 说明 |
+|---|---|
+| site | 点位 |
+| device | 设备安装项 |
+| contract | 合同 |
+| contract_item | 合同明细 |
+| contract_flow_line | 合同流链路 |
+| map_asset | 地图配置资产 |
+| construction_task | 施工任务 |
+| warehouse_record | 出入库记录 |
+| change_record | 变更事项 |
+| meeting | 会议纪要 |
+| work_order | 运维工单 |
+
+### 8.2 存储字段约束
+
+- `storage_key` 是业务访问文件的主键，不应依赖本机绝对路径。
+- 本地文件库、NAS、MinIO、S3、OSS、COS 都必须映射为相同语义的 `storage_provider + storage_bucket + storage_key`。
+- `sha256` 必须在入库前计算，用于重复检测、完整性校验和版本识别。
+- `source_path` 仅用于审计和回溯，不作为生产下载路径。

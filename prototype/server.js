@@ -9,6 +9,8 @@ const STORAGE_DIR = path.join(ROOT_DIR, "storage");
 const STATE_FILE = path.join(STORAGE_DIR, "roadside-status-state.json");
 const MAP_ASSET_DIR = "/Users/tt2000/Documents/天安智联/AI/项目管理工具包/无锡车路云MAP、RSI及信号机配置文件Excel";
 const MAP_ASSET_CACHE_TTL_MS = 30 * 1000;
+const DOCUMENT_ASSET_REPORT = path.join(ROOT_DIR, "..", "document_assets", "import_batches", "latest-document-scan.json");
+const DOCUMENT_ASSET_SAMPLE_REPORT = path.join(ROOT_DIR, "..", "document_assets", "import_batches", "sample-document-assets.json");
 let mapAssetCache = null;
 
 const MIME_TYPES = {
@@ -538,6 +540,51 @@ async function handleRoadsideState(request, response) {
   response.end();
 }
 
+
+async function readDocumentAssetReport() {
+  const candidates = [DOCUMENT_ASSET_REPORT, DOCUMENT_ASSET_SAMPLE_REPORT];
+  for (const candidate of candidates) {
+    try {
+      const body = await fs.readFile(candidate, "utf8");
+      return { ...JSON.parse(body), reportPath: candidate };
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  return {
+    batchNo: "EMPTY",
+    projectCode: "wuxi-cv2x",
+    generatedAt: new Date().toISOString(),
+    reportPath: "",
+    summary: {
+      fileCount: 0,
+      totalSizeBytes: 0,
+      duplicateFileCount: 0,
+      unlinkedFileCount: 0,
+      categoryCounts: {},
+      extensionCounts: {},
+      errorCount: 0,
+    },
+    records: [],
+    errors: [],
+  };
+}
+
+async function handleDocumentAssets(request, response) {
+  if (request.method !== "GET") {
+    response.writeHead(405, { Allow: "GET" });
+    response.end();
+    return;
+  }
+  try {
+    const report = await readDocumentAssetReport();
+    sendJson(response, 200, report);
+  } catch (error) {
+    console.error(error);
+    sendJson(response, 500, { error: "document_assets_read_failed" });
+  }
+}
+
 async function serveStatic(request, response, pathname) {
   const requestedPath = pathname === "/" ? "/index.html" : pathname;
   const filePath = path.normalize(path.join(ROOT_DIR, fileURLToPath(`file://${requestedPath}`)));
@@ -573,6 +620,10 @@ const server = http.createServer(async (request, response) => {
   }
   if (requestUrl.pathname === "/api/map-assets/export") {
     await handleMapAssetExport(request, response, requestUrl);
+    return;
+  }
+  if (requestUrl.pathname === "/api/document-assets") {
+    await handleDocumentAssets(request, response);
     return;
   }
   await serveStatic(request, response, decodeURIComponent(requestUrl.pathname));

@@ -5291,3 +5291,101 @@ body[data-visual-theme="trajectory"] .nav-item::before {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* 文档资产中心 */
+.document-head {
+  align-items: flex-start;
+}
+
+.document-asset-status {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted, #f7f8fb);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.document-asset-status.error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(254, 226, 226, 0.55);
+  color: #991b1b;
+}
+
+.document-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.document-metric {
+  text-align: left;
+}
+
+.document-flow-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.document-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.document-flow span {
+  position: relative;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.document-flow span:not(:last-child)::after {
+  content: "→";
+  margin-left: 8px;
+  color: var(--muted);
+}
+
+.document-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.5fr);
+  gap: 14px;
+}
+
+.document-category-panel .document-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.document-card.warning {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(255, 251, 235, 0.65);
+}
+
+.document-table-panel .table-wrap {
+  max-height: 560px;
+  overflow: auto;
+}
+
+.document-table-panel td:first-child {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .document-metrics,
+  .document-flow-grid,
+  .document-layout {
+    grid-template-columns: 1fr;
+  }
+}

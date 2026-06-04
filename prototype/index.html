@@ -367,14 +367,72 @@
         </section>
 
         <section class="panel" id="documents">
-          <div class="section-head">
+          <div class="section-head document-head">
             <div>
-              <h2>资料管理</h2>
-              <p>围绕点位、设备、合同、验收和运维对象归集文档、照片和报告</p>
+              <h2>文档资产中心</h2>
+              <p>只展示文档元数据、分类、版本、业务对象关联和治理状态；大文件原件进入 document_assets 或对象存储</p>
             </div>
-            <button class="primary-btn">上传资料</button>
+            <div class="import-actions">
+              <button class="primary-btn" id="refreshDocumentAssets">读取扫描报告</button>
+              <button class="ghost-btn" id="showDocumentStorageRule">存储口径</button>
+            </div>
           </div>
-          <div class="document-grid" id="documentGrid"></div>
+          <div class="document-asset-status" id="documentAssetStatus">等待读取文档资产扫描报告</div>
+          <div class="document-metrics" id="documentMetrics"></div>
+          <div class="document-flow-grid">
+            <article class="surface">
+              <h3>文档资产分层</h3>
+              <div class="document-flow">
+                <span>原件存储</span>
+                <span>元数据</span>
+                <span>业务关联</span>
+                <span>解析质检</span>
+                <span>云端迁移</span>
+              </div>
+            </article>
+            <article class="surface">
+              <h3>优先试点资料</h3>
+              <div class="chips">
+                <span>合同</span>
+                <span>点位一档资料</span>
+                <span>地图配置资产</span>
+                <span>安装签证</span>
+                <span>出入库单据</span>
+              </div>
+            </article>
+          </div>
+          <div class="document-layout">
+            <section class="surface document-category-panel">
+              <div class="section-head compact-head">
+                <h3>分类目录</h3>
+                <span id="documentCategoryCount">-</span>
+              </div>
+              <div class="document-grid" id="documentGrid"></div>
+            </section>
+            <section class="surface document-table-panel">
+              <div class="section-head compact-head">
+                <h3>文件元数据样例</h3>
+                <span id="documentRecordCount">不加载原件</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>文件名</th>
+                      <th>分类</th>
+                      <th>类型</th>
+                      <th>大小</th>
+                      <th>关联对象</th>
+                      <th>审核</th>
+                      <th>解析</th>
+                      <th>质检</th>
+                    </tr>
+                  </thead>
+                  <tbody id="documentRows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </section>
 
         <section class="panel" id="ops">
