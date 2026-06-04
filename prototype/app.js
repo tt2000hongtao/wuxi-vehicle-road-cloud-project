@@ -23,7 +23,16 @@ const state = {
     signalExcel: [],
     svg: [],
   },
+  siteColumnFilters: {
+    district: [],
+    type: [],
+    vendor: [],
+    perception: [],
+    adaptive: [],
+    variableLane: [],
+  },
   activeMapAssetFilter: null,
+  activeSiteFilter: null,
   selectedMapAssetId: null,
 };
 
@@ -226,6 +235,186 @@ function issueText(site) {
   return site.issueCount > 0 ? `${site.issueCount} 项` : "-";
 }
 
+
+const siteFilterLabels = {
+  district: "区域",
+  type: "类型",
+  vendor: "信号机厂商",
+  perception: "感知点位类型",
+  adaptive: "自适应",
+  variableLane: "可变车道",
+};
+
+function siteFilterValue(site, key) {
+  if (key === "district") return site.district || "未标注";
+  if (key === "type") return site.type || "未标注";
+  if (key === "vendor") return site.vendor || "未标注";
+  if (key === "perception") return perceptionType(site);
+  if (key === "adaptive") return site.adaptive ? "是" : "否";
+  if (key === "variableLane") return isVariableLane(site) ? "是" : "否";
+  return "";
+}
+
+function siteFilterValues(key) {
+  if (key === "adaptive" || key === "variableLane") return ["是", "否"];
+  return Array.from(new Set(sites.map((site) => siteFilterValue(site, key))))
+    .filter(Boolean)
+    .sort((a, b) => String(a).localeCompare(String(b), "zh-CN"));
+}
+
+function siteMultiFilterPass(value, selectedValues) {
+  if (!selectedValues?.length) return true;
+  return selectedValues.includes(value);
+}
+
+function renderSiteSummaryCards() {
+  const target = $("#siteSummaryCards");
+  if (!target) return;
+  const cards = [
+    ["路口点位数", sites.length],
+    ["R1-点位数", sites.filter((site) => /^R1/i.test(perceptionType(site))).length],
+    ["R2点位数", sites.filter((site) => /^R2/i.test(perceptionType(site))).length],
+    ["礼让行人点位数", sites.filter((site) => /礼让行人/.test(perceptionType(site)) || /礼让行人/.test(site.type || "")).length],
+    ["匝道汇入点位数", sites.filter((site) => site.type === "匝道汇入" || /匝道汇入/.test(perceptionType(site))).length],
+    ["R3点位数", sites.filter((site) => /^R3/i.test(perceptionType(site))).length],
+  ];
+  target.innerHTML = cards
+    .map(([label, value], index) => `<div class="site-summary-card tone-${index + 1}"><span>${label}</span><strong>${formatNumber(value)}</strong></div>`)
+    .join("");
+}
+
+function renderSiteColumnFilters() {
+  $$(`[data-site-filter-open]`).forEach((button) => {
+    const key = button.dataset.siteFilterOpen;
+    const count = state.siteColumnFilters[key]?.length || 0;
+    button.classList.toggle("active", count > 0);
+    button.textContent = count ? `筛${count}` : "筛";
+  });
+  renderSiteFilterPopover();
+}
+
+function renderSiteFilterPopover() {
+  const popover = $("#siteFilterPopover");
+  if (!popover) return;
+  const key = state.activeSiteFilter;
+  if (!key) {
+    popover.hidden = true;
+    popover.innerHTML = "";
+    return;
+  }
+  const trigger = $(`[data-site-filter-open="${key}"]`);
+  if (!trigger) {
+    popover.hidden = true;
+    return;
+  }
+  const selected = state.siteColumnFilters[key] || [];
+  const values = siteFilterValues(key);
+  const columnRect = trigger.closest("th")?.getBoundingClientRect() || trigger.getBoundingClientRect();
+  popover.hidden = false;
+  const width = Math.round(columnRect.width);
+  popover.style.width = `${width}px`;
+  popover.style.left = `${Math.min(window.innerWidth - width - 12, Math.max(12, columnRect.left))}px`;
+  popover.style.top = `${columnRect.bottom + 6}px`;
+  popover.innerHTML = `
+    <div class="site-filter-popover-head">
+      <strong>${siteFilterLabels[key]}</strong>
+      <button type="button" data-site-filter-clear="${key}">清空</button>
+    </div>
+    <div class="site-filter-options">
+      ${values
+        .map(
+          (value) => `
+            <label>
+              <input type="checkbox" data-site-filter-option="${key}" value="${value}" ${selected.includes(value) ? "checked" : ""} />
+              <span>${value}</span>
+            </label>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderSiteColumnHandles() {
+  const table = $("#siteTable");
+  if (!table) return;
+  table.querySelectorAll(".column-resizer").forEach((handle) => handle.remove());
+  Array.from(table.querySelectorAll("th")).forEach((th, index, headers) => {
+    if (index === headers.length - 1) return;
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "column-resizer site-column-resizer";
+    handle.setAttribute("aria-label", `调整 ${th.textContent.trim()} 列宽`);
+    handle.dataset.columnIndex = String(index);
+    handle.dataset.resizeTable = "site";
+    th.appendChild(handle);
+  });
+}
+
+function applySiteViewLayout() {
+  const tableWrap = $("#tableView .table-wrap");
+  const table = $("#siteTable");
+  if (tableWrap && table) {
+    const header = table.querySelector("thead");
+    const firstRow = table.querySelector("tbody tr");
+    const headerHeight = Math.ceil(header?.getBoundingClientRect().height || 48);
+    const rowHeight = Math.ceil(firstRow?.getBoundingClientRect().height || 68);
+    tableWrap.style.minHeight = "0px";
+    tableWrap.style.height = "auto";
+    tableWrap.style.maxHeight = "none";
+    const top = tableWrap.getBoundingClientRect().top;
+    const height = Math.max(headerHeight + 72, Math.floor(window.innerHeight - top - 24));
+    tableWrap.style.height = `${height}px`;
+    tableWrap.style.maxHeight = `${height}px`;
+  }
+
+  const mapLayout = $("#mapView .map-layout");
+  if (mapLayout) {
+    mapLayout.style.height = "auto";
+    const top = mapLayout.getBoundingClientRect().top;
+    const bottomPadding = 24;
+    const height = Math.max(420, Math.floor(window.innerHeight - top - bottomPadding));
+    mapLayout.style.height = `${height}px`;
+  }
+}
+
+function applySiteViewLayoutSettled() {
+  applySiteViewLayout();
+  requestAnimationFrame(() => {
+    applySiteViewLayout();
+    setTimeout(applySiteViewLayout, 80);
+  });
+}
+
+function startSiteColumnResize(event, handle) {
+  event.preventDefault();
+  event.stopPropagation();
+  const table = $("#siteTable");
+  const th = handle.closest("th");
+  if (!table || !th) return;
+  const columnIndex = Number(handle.dataset.columnIndex);
+  const startX = event.clientX;
+  const startWidth = th.getBoundingClientRect().width;
+  const cells = Array.from(table.querySelectorAll(`tr > *:nth-child(${columnIndex + 1})`));
+  const onMove = (moveEvent) => {
+    const width = Math.max(columnIndex === 0 ? 54 : 76, startWidth + moveEvent.clientX - startX);
+    cells.forEach((cell) => {
+      cell.style.width = `${width}px`;
+      cell.style.minWidth = `${width}px`;
+      cell.style.maxWidth = `${width}px`;
+    });
+    if (state.activeSiteFilter) renderSiteFilterPopover();
+  };
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    document.body.classList.remove("resizing-column");
+  };
+  document.body.classList.add("resizing-column");
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
 function importPanelElement() {
   if (state.panel === "ops" && $("#opsImportPanel")) return $("#opsImportPanel");
   return state.panel === "imports" && $("#importCenterPanel") ? $("#importCenterPanel") : $("#importPanel");
@@ -239,17 +428,16 @@ function closeImportPanel(panel = importPanelElement()) {
 
 function filteredSites() {
   const q = state.query.trim().toLowerCase();
+  const filters = state.siteColumnFilters;
   return sites.filter((site) => {
-    const text = `${site.nodeId} ${site.name} ${site.vendor} ${site.district} ${site.type}`.toLowerCase();
-    const districtOk = state.district === "全部区域" || site.district === state.district;
-    const perceptionOk = state.perception === "全部感知类型" || perceptionType(site) === state.perception;
-    const adaptiveOk =
-      state.adaptive === "全部自适应" ||
-      (state.adaptive === "自适应" ? site.adaptive : !site.adaptive);
-    const variableOk =
-      state.variableLane === "全部可变车道" ||
-      (state.variableLane === "可变车道" ? isVariableLane(site) : !isVariableLane(site));
-    return districtOk && perceptionOk && adaptiveOk && variableOk && (!q || text.includes(q));
+    const text = `${site.nodeId} ${site.name} ${site.vendor} ${site.district} ${site.type} ${perceptionType(site)}`.toLowerCase();
+    const districtOk = siteMultiFilterPass(siteFilterValue(site, "district"), filters.district);
+    const typeOk = siteMultiFilterPass(siteFilterValue(site, "type"), filters.type);
+    const vendorOk = siteMultiFilterPass(siteFilterValue(site, "vendor"), filters.vendor);
+    const perceptionOk = siteMultiFilterPass(siteFilterValue(site, "perception"), filters.perception);
+    const adaptiveOk = siteMultiFilterPass(siteFilterValue(site, "adaptive"), filters.adaptive);
+    const variableOk = siteMultiFilterPass(siteFilterValue(site, "variableLane"), filters.variableLane);
+    return districtOk && typeOk && vendorOk && perceptionOk && adaptiveOk && variableOk && (!q || text.includes(q));
   }).sort((a, b) => (b.issueCount || 0) - (a.issueCount || 0));
 }
 
@@ -271,7 +459,8 @@ function setPanel(panelId) {
   $$(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.panel === panelId));
   renderPageHeader();
   if (panelId === "overview") requestAnimationFrame(renderOverviewMap);
-  if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => renderMap($("#siteMap"), filteredSites()));
+  if (panelId === "sites") requestAnimationFrame(applySiteViewLayoutSettled);
+  if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => { applySiteViewLayoutSettled(); renderMap($("#siteMap"), filteredSites()); });
   if (panelId === "mapAssets") renderMapAssets();
   if (panelId === "coordinates") requestAnimationFrame(renderCoordinateIssues);
   if (panelId === "ops") requestAnimationFrame(renderOps);
@@ -281,6 +470,7 @@ function renderPageHeader() {
   const [title, subtitle] = pageHeaders[state.panel] || pageHeaders.overview;
   $("#pageTitle").textContent = title;
   $("#pageSubtitle").textContent = subtitle;
+  $(".page-heading")?.classList.toggle("sites-heading", state.panel === "sites");
 }
 
 function categoryLabel(category) {
@@ -1738,20 +1928,17 @@ function renderOverviewMap() {
 }
 
 function renderFilters() {
-  const districts = ["全部区域", ...Array.from(new Set(sites.map((site) => site.district))).sort()];
-  const perceptions = ["全部感知类型", ...Array.from(new Set(sites.map(perceptionType))).sort()];
-  $("#districtFilter").innerHTML = districts.map((item) => `<option>${item}</option>`).join("");
-  $("#perceptionFilter").innerHTML = perceptions.map((item) => `<option>${item}</option>`).join("");
-  $("#adaptiveFilter").innerHTML = ["全部自适应", "自适应", "非自适应"].map((item) => `<option>${item}</option>`).join("");
-  $("#variableLaneFilter").innerHTML = ["全部可变车道", "可变车道", "非可变车道"].map((item) => `<option>${item}</option>`).join("");
+  renderSiteSummaryCards();
+  renderSiteColumnFilters();
 }
 
 function renderSites() {
   const rows = filteredSites();
   $("#siteRows").innerHTML = rows
     .map(
-      (site) => `
+      (site, index) => `
         <tr data-open-site="${site.nodeId}" tabindex="0" aria-label="打开 ${site.name} 编辑页">
+          <td class="site-index-col">${index + 1}</td>
           <td><strong>${site.nodeId}</strong></td>
           <td><strong>${site.name}</strong><br /><small>${site.englishName || ""}</small></td>
           <td>${districtBadge(site)}</td>
@@ -1771,14 +1958,25 @@ function renderSites() {
       `,
     )
     .join("");
+  renderSiteColumnHandles();
+  renderSiteColumnFilters();
+  applySiteViewLayoutSettled();
 
   $("#siteCards").innerHTML = rows
     .map(
       (site) => `
         <article class="site-card">
-          <div class="card-top">${districtBadge(site)} <span class="status-pill ${statusClass(site)}">${site.status}</span></div>
-          <h3>${site.name}</h3>
-          <p>${site.type} / NodeID ${site.nodeId}<br />${site.vendor || "-"} / ${perceptionType(site)} / ${site.adaptive ? "自适应" : "非自适应"} / ${isVariableLane(site) ? "可变车道" : "非可变车道"}</p>
+          <div class="site-card-head">
+            <h3 class="site-card-title"><span class="site-card-node">${site.nodeId}</span><span class="site-card-name">${site.name}</span></h3>
+            ${districtBadge(site)}
+          </div>
+          <p class="site-card-meta">
+            <span>${site.type}</span>
+            <span>${site.vendor || "-"}</span>
+            <span>${perceptionType(site)}</span>
+            <span>${site.adaptive ? "自适应" : "非自适应"}</span>
+            <span>${isVariableLane(site) ? "可变车道" : "非可变车道"}</span>
+          </p>
           <div class="card-foot">
             <span>${deviceTypeCount(site)} 类设备 · ${deviceRecordCount(site)} 条记录 · 异常 ${issueText(site)} · 档案 ${site.archiveCompleteness}%</span>
             <button class="link-btn" data-open-site="${site.nodeId}">编辑</button>
@@ -2845,29 +3043,17 @@ function bindEvents() {
     renderDevices();
     renderMapAssets();
   });
-  $("#districtFilter").addEventListener("change", (event) => {
-    state.district = event.target.value;
-    renderSites();
-  });
-  $("#perceptionFilter").addEventListener("change", (event) => {
-    state.perception = event.target.value;
-    renderSites();
-  });
-  $("#adaptiveFilter").addEventListener("change", (event) => {
-    state.adaptive = event.target.value;
-    renderSites();
-  });
-  $("#variableLaneFilter").addEventListener("change", (event) => {
-    state.variableLane = event.target.value;
-    renderSites();
-  });
   $$(".segmented button").forEach((button) =>
     button.addEventListener("click", () => {
       state.view = button.dataset.view;
       $$(".segmented button").forEach((item) => item.classList.toggle("active", item === button));
       $$(".site-view").forEach((view) => view.classList.toggle("active", view.id === `${state.view}View`));
+      requestAnimationFrame(applySiteViewLayoutSettled);
       if (state.view === "map") {
-        requestAnimationFrame(() => renderMap($("#siteMap"), filteredSites()));
+        requestAnimationFrame(() => {
+          applySiteViewLayoutSettled();
+          renderMap($("#siteMap"), filteredSites());
+        });
       }
     }),
   );
@@ -2931,6 +3117,33 @@ function bindEvents() {
       alert(`${item.material} 已按“${item.target}”生成治理建议，等待业务确认。`);
       renderUnmatchedRows();
       return;
+    }
+    const siteFilterTrigger = event.target.closest("[data-site-filter-open]");
+    if (siteFilterTrigger) {
+      const key = siteFilterTrigger.dataset.siteFilterOpen;
+      state.activeSiteFilter = state.activeSiteFilter === key ? null : key;
+      renderSiteColumnFilters();
+      return;
+    }
+    const siteFilterClear = event.target.closest("[data-site-filter-clear]");
+    if (siteFilterClear) {
+      state.siteColumnFilters[siteFilterClear.dataset.siteFilterClear] = [];
+      renderSites();
+      return;
+    }
+    const siteFilterOption = event.target.closest("[data-site-filter-option]");
+    if (siteFilterOption) {
+      const key = siteFilterOption.dataset.siteFilterOption;
+      const selected = new Set(state.siteColumnFilters[key] || []);
+      if (siteFilterOption.checked) selected.add(siteFilterOption.value);
+      else selected.delete(siteFilterOption.value);
+      state.siteColumnFilters[key] = Array.from(selected);
+      renderSites();
+      return;
+    }
+    if (state.activeSiteFilter && !event.target.closest("#siteFilterPopover")) {
+      state.activeSiteFilter = null;
+      renderSiteColumnFilters();
     }
     const filterTrigger = event.target.closest("[data-map-asset-filter-open]");
     if (filterTrigger) {
@@ -2997,7 +3210,8 @@ function bindEvents() {
   });
   document.body.addEventListener("mousedown", (event) => {
     const handle = event.target.closest(".column-resizer");
-    if (handle) startMapAssetColumnResize(event, handle);
+    if (handle?.dataset.resizeTable === "site") startSiteColumnResize(event, handle);
+    else if (handle) startMapAssetColumnResize(event, handle);
     const preview = event.target.closest("[data-map-asset-preview]");
     if (preview) startMapAssetPreviewDrag(event, preview);
   });
@@ -3094,6 +3308,11 @@ function bindEvents() {
   window.addEventListener("amap-ready", () => {
     if (state.panel === "ops") renderOpsMap(roadsideRowsForSelectedDate());
     if (state.view === "map") renderMap($("#siteMap"), filteredSites());
+  });
+  window.addEventListener("resize", () => {
+    applySiteViewLayoutSettled();
+    if (state.activeSiteFilter) renderSiteFilterPopover();
+    if (state.activeMapAssetFilter) renderMapAssetFilterPopover();
   });
 }
 

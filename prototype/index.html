@@ -128,36 +128,34 @@
 
         <section class="panel" id="sites">
           <div class="section-head sticky-head">
-            <div>
+            <div class="site-title-line">
               <h2>点位管理</h2>
               <p>表格、卡片和地图三种视图共用筛选条件</p>
             </div>
-            <div class="controls">
-              <select id="districtFilter" aria-label="行政区域筛选"></select>
-              <select id="perceptionFilter" aria-label="感知点位类型筛选"></select>
-              <select id="adaptiveFilter" aria-label="是否自适应点位筛选"></select>
-              <select id="variableLaneFilter" aria-label="是否可变车道路口筛选"></select>
+            <div class="controls site-head-controls">
               <div class="segmented" role="tablist" aria-label="点位视图">
                 <button class="active" data-view="table">表格</button>
                 <button data-view="card">卡片</button>
                 <button data-view="map">地图</button>
               </div>
+              <div class="site-summary-cards" id="siteSummaryCards" aria-label="点位统计卡片"></div>
             </div>
           </div>
 
           <div class="site-view active" id="tableView">
             <div class="table-wrap">
-              <table>
+              <table id="siteTable" class="site-table">
                 <thead>
                   <tr>
+                    <th class="site-index-col">序号</th>
                     <th>NodeID</th>
                     <th>点位名称</th>
-                    <th>区域</th>
-                    <th>类型</th>
-                    <th>信号机厂商</th>
-                    <th>感知点位类型</th>
-                    <th>自适应</th>
-                    <th>可变车道</th>
+                    <th>区域<button class="site-filter-trigger" data-site-filter-open="district" aria-label="按区域过滤">筛</button></th>
+                    <th>类型<button class="site-filter-trigger" data-site-filter-open="type" aria-label="按类型过滤">筛</button></th>
+                    <th>信号机厂商<button class="site-filter-trigger" data-site-filter-open="vendor" aria-label="按信号机厂商过滤">筛</button></th>
+                    <th>感知点位类型<button class="site-filter-trigger" data-site-filter-open="perception" aria-label="按感知点位类型过滤">筛</button></th>
+                    <th>自适应<button class="site-filter-trigger" data-site-filter-open="adaptive" aria-label="按自适应过滤">筛</button></th>
+                    <th>可变车道<button class="site-filter-trigger" data-site-filter-open="variableLane" aria-label="按可变车道过滤">筛</button></th>
                     <th>GCJ-02 坐标</th>
                     <th>设备</th>
                     <th>异常</th>
@@ -167,6 +165,7 @@
                 <tbody id="siteRows"></tbody>
               </table>
             </div>
+            <div class="site-filter-popover" id="siteFilterPopover" hidden></div>
           </div>
 
           <div class="site-view" id="cardView">

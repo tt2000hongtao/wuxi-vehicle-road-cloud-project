@@ -244,9 +244,10 @@ function inspectMapJsonContent(content) {
     nodes.forEach((node) => {
       (node?.inLinks || []).forEach((link) => {
         if (!hasMapNodeId(link?.upstreamNodeId?.id)) quality.nodeIdMissing = true;
-        (link?.lanes || []).filter(isNormalVehicleJsonLane).forEach((lane) => {
+        const normalLanes = (link?.lanes || []).filter(isNormalVehicleJsonLane);
+        if (normalLanes.length && !normalLanes.some(hasJsonStopLine)) quality.stopLineMissing = true;
+        normalLanes.forEach((lane) => {
           if (!hasJsonDownstreamNode(lane)) quality.nodeIdMissing = true;
-          if (!hasJsonStopLine(lane)) quality.stopLineMissing = true;
         });
       });
     });
@@ -291,9 +292,10 @@ function inspectMapXmlContent(content) {
   xmlBlocks(content, "Link").forEach((linkXml) => {
     const upstream = linkXml.match(/<upstreamNodeId\b[^>]*>([\s\S]*?)<\/upstreamNodeId\s*>/)?.[1] || "";
     if (!hasMapNodeId(xmlTagText(upstream, "id"))) quality.nodeIdMissing = true;
-    xmlBlocks(linkXml, "Lane").filter(isNormalVehicleXmlLane).forEach((laneXml) => {
+    const normalLanes = xmlBlocks(linkXml, "Lane").filter(isNormalVehicleXmlLane);
+    if (normalLanes.length && !normalLanes.some(hasXmlStopLine)) quality.stopLineMissing = true;
+    normalLanes.forEach((laneXml) => {
       if (!hasXmlDownstreamNode(laneXml)) quality.nodeIdMissing = true;
-      if (!hasXmlStopLine(laneXml)) quality.stopLineMissing = true;
     });
   });
   return quality;
