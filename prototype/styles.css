@@ -669,6 +669,11 @@ button {
   color: var(--amber);
 }
 
+.status-pill.error {
+  background: #fde8e8;
+  color: #9b1c1c;
+}
+
 .legend {
   display: flex;
   gap: 14px;
@@ -973,6 +978,15 @@ tr[data-open-site] {
   cursor: pointer;
 }
 
+tr[data-select-macro-flow] {
+  cursor: pointer;
+}
+
+tr.selected-row td {
+  background: rgba(18, 115, 111, 0.1);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 tr[data-open-site]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -1020,7 +1034,7 @@ tr[data-open-site]:focus-visible {
 
 .site-cards {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1129,11 +1143,283 @@ body[data-visual-theme="trajectory"] .site-card-meta span {
   color: var(--muted);
 }
 
-.map-layout,
-.contract-layout {
+.map-layout {
   display: grid;
   grid-template-columns: 1fr 360px;
   gap: 14px;
+}
+
+.contract-system-metric span {
+  color: #1f3f45;
+  font-weight: 800;
+}
+
+.contract-system-metric small {
+  color: #415a61;
+}
+
+.contract-system-panel {
+  margin-top: 14px;
+}
+
+.contract-system-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.contract-system-metric strong {
+  font-size: 24px;
+}
+
+.contract-system-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.contract-system-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(18, 115, 111, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 14px 32px rgba(29, 48, 54, 0.08);
+}
+
+.contract-system-card.wide {
+  grid-column: 1 / -1;
+}
+
+.contract-system-card h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.contract-system-card .section-head {
+  margin-bottom: 10px;
+}
+
+.contract-system-table-wrap {
+  max-height: 440px;
+}
+
+.contract-system-table-wrap table {
+  min-width: 980px;
+}
+
+.contract-system-table-wrap td:nth-child(2),
+.contract-system-table-wrap td:nth-child(3),
+.contract-system-table-wrap td:nth-child(4),
+.contract-system-table-wrap td:nth-child(5),
+.contract-system-table-wrap td:nth-child(7) {
+  max-width: 340px;
+  overflow-wrap: anywhere;
+}
+
+.contract-review-guide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(18, 115, 111, 0.18);
+  border-radius: 8px;
+  background: rgba(223, 241, 239, 0.7);
+  color: #365256;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.contract-review-guide strong {
+  color: #173c40;
+}
+
+.contract-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.contract-review-actions .link-btn {
+  padding: 3px 7px;
+  border: 1px solid rgba(18, 115, 111, 0.22);
+  border-radius: 999px;
+  background: #eef8f7;
+  font-size: 12px;
+}
+
+.contract-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(130px, 0.7fr));
+  gap: 10px;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid rgba(18, 115, 111, 0.18);
+  border-radius: 12px;
+  background: #f4fbfa;
+}
+
+.contract-filter-bar label {
+  display: grid;
+  gap: 5px;
+  color: #24464c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.contract-filter-bar input,
+.contract-filter-bar select {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(18, 115, 111, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  color: #172123;
+  padding: 0 9px;
+  outline: 0;
+}
+
+.contract-filter-bar input:focus,
+.contract-filter-bar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(18, 115, 111, 0.14);
+}
+
+.contract-evidence-panel {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid rgba(18, 115, 111, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(238, 248, 247, 0.95), rgba(255, 255, 255, 0.9));
+  color: #19393e;
+}
+
+.contract-evidence-empty {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  color: #3f5b60;
+}
+
+.contract-evidence-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.contract-evidence-title strong {
+  display: block;
+  color: #132f33;
+}
+
+.contract-evidence-title span:not(.status-pill) {
+  color: #4f686d;
+  font-size: 12px;
+}
+
+.contract-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.contract-evidence-grid span {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(18, 115, 111, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #294b50;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.contract-evidence-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.contract-evidence-grid b {
+  display: block;
+  margin-bottom: 3px;
+  color: #12383c;
+}
+
+.link-btn.evidence {
+  margin-right: 6px;
+  color: #0d5d59;
+  background: #dff1ef;
+  font-weight: 800;
+}
+
+.link-btn.muted {
+  color: #52666a;
+}
+
+.contract-system-table-wrap small {
+  color: #4f6367;
+}
+
+#contractRelationshipStatus,
+.contract-system-card .compact-head span,
+.contract-rebuild-panel .compact-head span {
+  color: #4f6367;
+  font-weight: 600;
+}
+
+.contract-rebuild-panel {
+  margin-top: 14px;
+}
+
+.contract-link-steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.contract-link-steps article {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.contract-link-steps strong {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 8px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
+.contract-link-steps span {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+.contract-link-steps p {
+  margin: 0;
+  color: #4f6367;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+#contracts.panel.active {
+  display: flex;
+  min-height: calc(100vh - 112px);
+  flex-direction: column;
 }
 
 .map-canvas {
@@ -2448,7 +2734,7 @@ body[data-visual-theme="trajectory"] .map-asset-filter-options label:hover {
 }
 
 .ops-stats-table {
-  max-height: 360px;
+  max-height: 440px;
 }
 
 .ops-detail-table {
@@ -2725,7 +3011,6 @@ body[data-visual-theme="trajectory"] .map-asset-filter-options label:hover {
   .dashboard-grid,
     .site-cards,
     .map-layout,
-    .contract-layout,
     .warehouse-grid,
     .ops-board,
     .document-grid,
@@ -3035,20 +3320,23 @@ tr:hover td,
 }
 
 .status-pill {
-  color: #515154;
-  background: rgba(120, 120, 128, 0.12);
-  border: 1px solid rgba(60, 60, 67, 0.1);
+  color: #2f4246;
+  background: #eef4f4;
+  border: 1px solid rgba(47, 66, 70, 0.18);
+  font-weight: 700;
 }
 
 .status-pill.done {
-  color: var(--green);
-  background: rgba(36, 138, 61, 0.1);
+  color: #1f6b45;
+  background: #dff3e8;
+  border-color: rgba(31, 107, 69, 0.22);
 }
 
 .status-pill.warn,
 .issue-pill.warn {
-  color: var(--amber);
-  background: rgba(191, 122, 0, 0.1);
+  color: #8a5500;
+  background: #fff0cf;
+  border-color: rgba(138, 85, 0, 0.24);
 }
 
 .district-badge {
@@ -3716,20 +4004,84 @@ body[data-visual-theme="command"] .map-list button {
 }
 
 body[data-visual-theme="command"] .status-pill {
-  color: #bfe9ef;
-  background: rgba(140, 186, 202, 0.14);
-  border-color: rgba(140, 222, 244, 0.18);
+  color: #dffaff;
+  background: rgba(92, 148, 166, 0.28);
+  border-color: rgba(140, 222, 244, 0.34);
+  font-weight: 800;
 }
 
 body[data-visual-theme="command"] .status-pill.done {
-  color: #a5ffc7;
-  background: rgba(89, 242, 154, 0.12);
+  color: #b9ffd3;
+  background: rgba(64, 169, 112, 0.28);
+  border-color: rgba(137, 255, 185, 0.36);
 }
 
 body[data-visual-theme="command"] .status-pill.warn,
 body[data-visual-theme="command"] .issue-pill.warn {
-  color: #ffe3a0;
-  background: rgba(255, 211, 107, 0.13);
+  color: #ffe8ad;
+  background: rgba(190, 128, 23, 0.32);
+  border-color: rgba(255, 211, 107, 0.4);
+}
+
+body[data-visual-theme="command"] .status-pill.error {
+  color: #ffd7d7;
+  background: rgba(170, 42, 42, 0.36);
+  border-color: rgba(255, 150, 150, 0.42);
+}
+
+body[data-visual-theme="command"] .contract-system-card,
+body[data-visual-theme="command"] .contract-link-steps article {
+  border-color: rgba(140, 222, 244, 0.28);
+  background: rgba(10, 27, 35, 0.86);
+}
+
+body[data-visual-theme="command"] .contract-system-metric span,
+body[data-visual-theme="command"] #contractRelationshipStatus,
+body[data-visual-theme="command"] .contract-system-card .compact-head span,
+body[data-visual-theme="command"] .contract-rebuild-panel .compact-head span {
+  color: #c9f6ff;
+}
+
+body[data-visual-theme="command"] .contract-system-metric small,
+body[data-visual-theme="command"] .contract-system-table-wrap small,
+body[data-visual-theme="command"] .contract-link-steps p {
+  color: #a9cfda;
+}
+
+body[data-visual-theme="command"] .contract-review-guide {
+  border-color: rgba(140, 222, 244, 0.28);
+  background: rgba(33, 215, 232, 0.1);
+  color: #c9f6ff;
+}
+
+body[data-visual-theme="command"] .contract-review-guide strong {
+  color: #effdff;
+}
+
+body[data-visual-theme="command"] .contract-review-actions .link-btn {
+  border-color: rgba(140, 222, 244, 0.28);
+  background: rgba(33, 215, 232, 0.1);
+}
+
+body[data-visual-theme="command"] .contract-filter-bar,
+body[data-visual-theme="command"] .contract-evidence-panel {
+  border-color: rgba(140, 222, 244, 0.3);
+  background: rgba(8, 25, 32, 0.82);
+  color: #dffaff;
+}
+
+body[data-visual-theme="command"] .contract-filter-bar label,
+body[data-visual-theme="command"] .contract-evidence-grid b,
+body[data-visual-theme="command"] .contract-evidence-title strong {
+  color: #effdff;
+}
+
+body[data-visual-theme="command"] .contract-filter-bar input,
+body[data-visual-theme="command"] .contract-filter-bar select,
+body[data-visual-theme="command"] .contract-evidence-grid span {
+  border-color: rgba(140, 222, 244, 0.28);
+  background: rgba(12, 42, 52, 0.92);
+  color: #e9fbff;
 }
 
 body[data-visual-theme="command"] .device-type,
@@ -4198,18 +4550,84 @@ body[data-visual-theme="trajectory"] .status-pill,
 body[data-visual-theme="trajectory"] .device-type,
 body[data-visual-theme="trajectory"] .issue-pill,
 body[data-visual-theme="trajectory"] .flow-node {
-  color: #e5e1d8;
-  background: rgba(107, 113, 114, 0.34);
-  border-color: rgba(211, 205, 190, 0.18);
+  color: #f4eee0;
+  background: rgba(109, 113, 107, 0.48);
+  border-color: rgba(230, 220, 198, 0.32);
+  font-weight: 800;
 }
 
 body[data-visual-theme="trajectory"] .status-pill.done {
-  color: #d4dbce;
+  color: #edf8e8;
+  background: rgba(104, 125, 92, 0.5);
+  border-color: rgba(210, 226, 190, 0.32);
 }
 
 body[data-visual-theme="trajectory"] .status-pill.warn,
 body[data-visual-theme="trajectory"] .issue-pill.warn {
-  color: #d8c59a;
+  color: #ffe1a0;
+  background: rgba(128, 88, 32, 0.5);
+  border-color: rgba(255, 200, 87, 0.38);
+}
+
+body[data-visual-theme="trajectory"] .status-pill.error {
+  color: #ffe0dc;
+  background: rgba(132, 52, 44, 0.52);
+  border-color: rgba(255, 168, 150, 0.42);
+}
+
+body[data-visual-theme="trajectory"] .contract-system-card,
+body[data-visual-theme="trajectory"] .contract-link-steps article {
+  border-color: rgba(226, 216, 195, 0.32);
+  background: rgba(30, 34, 35, 0.74);
+}
+
+body[data-visual-theme="trajectory"] .contract-system-metric span,
+body[data-visual-theme="trajectory"] #contractRelationshipStatus,
+body[data-visual-theme="trajectory"] .contract-system-card .compact-head span,
+body[data-visual-theme="trajectory"] .contract-rebuild-panel .compact-head span {
+  color: #efe8d8;
+}
+
+body[data-visual-theme="trajectory"] .contract-system-metric small,
+body[data-visual-theme="trajectory"] .contract-system-table-wrap small,
+body[data-visual-theme="trajectory"] .contract-link-steps p {
+  color: #cfc6b6;
+}
+
+body[data-visual-theme="trajectory"] .contract-review-guide {
+  border-color: rgba(226, 216, 195, 0.3);
+  background: rgba(183, 175, 161, 0.12);
+  color: #e7dfce;
+}
+
+body[data-visual-theme="trajectory"] .contract-review-guide strong {
+  color: #fff8ea;
+}
+
+body[data-visual-theme="trajectory"] .contract-review-actions .link-btn {
+  border-color: rgba(226, 216, 195, 0.28);
+  background: rgba(183, 175, 161, 0.12);
+}
+
+body[data-visual-theme="trajectory"] .contract-filter-bar,
+body[data-visual-theme="trajectory"] .contract-evidence-panel {
+  border-color: rgba(226, 216, 195, 0.3);
+  background: rgba(31, 34, 33, 0.78);
+  color: #efe8d8;
+}
+
+body[data-visual-theme="trajectory"] .contract-filter-bar label,
+body[data-visual-theme="trajectory"] .contract-evidence-grid b,
+body[data-visual-theme="trajectory"] .contract-evidence-title strong {
+  color: #fff8ea;
+}
+
+body[data-visual-theme="trajectory"] .contract-filter-bar input,
+body[data-visual-theme="trajectory"] .contract-filter-bar select,
+body[data-visual-theme="trajectory"] .contract-evidence-grid span {
+  border-color: rgba(226, 216, 195, 0.28);
+  background: rgba(30, 34, 35, 0.92);
+  color: #f4eee0;
 }
 
 body[data-visual-theme="trajectory"] .link-btn {
@@ -5385,7 +5803,38 @@ body[data-visual-theme="trajectory"] .nav-item::before {
 @media (max-width: 1180px) {
   .document-metrics,
   .document-flow-grid,
-  .document-layout {
+  .document-layout,
+  .contract-system-metrics,
+  .contract-filter-bar {
     grid-template-columns: 1fr;
   }
+}
+
+/* 文档资产中心：提高“文档资产分层 / 优先试点资料”卡片标签对比度 */
+#documents .document-flow span,
+#documents .chips span {
+  border: 1px solid rgba(18, 115, 111, 0.28);
+  background: #eef8f7;
+  color: #0b4f4b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  font-weight: 800;
+}
+
+#documents .document-flow span:not(:last-child)::after {
+  color: #496568;
+}
+
+body[data-visual-theme="command"] #documents .document-flow span,
+body[data-visual-theme="command"] #documents .chips span,
+body[data-visual-theme="trajectory"] #documents .document-flow span,
+body[data-visual-theme="trajectory"] #documents .chips span {
+  border-color: rgba(114, 245, 255, 0.38);
+  background: rgba(9, 30, 34, 0.92);
+  color: #eaffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 18px rgba(33, 215, 232, 0.12);
+}
+
+body[data-visual-theme="command"] #documents .document-flow span:not(:last-child)::after,
+body[data-visual-theme="trajectory"] #documents .document-flow span:not(:last-child)::after {
+  color: rgba(234, 255, 255, 0.72);
 }

@@ -104,8 +104,8 @@
 
             <section class="surface">
               <div class="section-head">
-                <h2>合同流风险</h2>
-                <button class="ghost-btn" data-panel-link="contracts">查看合同</button>
+                <h2>合同关系重构风险</h2>
+                <button class="ghost-btn" data-panel-link="contracts">进入确认工作台</button>
               </div>
               <div class="contract-strip" id="contractStrip"></div>
             </section>
@@ -338,24 +338,197 @@
           <div class="section-head">
             <div>
               <h2>合同管理</h2>
-              <p>合同流图谱、天安前向合同、天安后向合同、设备级合同明细和履约节点</p>
+              <p>以设备级资金流为最小颗粒度，结合业主审计结果和阶段付款条件，重构“前向合同 → 天安 → 后向合同”的多对多关系</p>
             </div>
-            <button class="primary-btn">导入合同流</button>
+            <button class="primary-btn" id="refreshContractRelationships">重建合同关系</button>
           </div>
-          <div class="contract-layout">
-            <div class="flow-board" id="flowBoard"></div>
-            <div class="surface contract-detail">
-              <h3>设备级资金与履约</h3>
-              <div class="timeline">
-                <div><span>1</span> 合同签署</div>
-                <div><span>2</span> 到货查验</div>
-                <div><span>3</span> 入库/领料</div>
-                <div><span>4</span> 安装验收</div>
-                <div><span>5</span> 上游回款</div>
-                <div><span>6</span> 后向付款</div>
-              </div>
+          <section class="surface contract-rebuild-panel">
+            <div class="section-head compact-head">
+              <h3>新版合同管理逻辑</h3>
+              <span id="contractRelationshipStatus">读取合同关系重构数据</span>
             </div>
-          </div>
+            <div class="contract-link-steps contract-rebuild-steps">
+              <article>
+                <strong>1</strong>
+                <span>宏观资金骨架</span>
+                <p>读取 Excel `合同流` 尾部，识别移动/天安/浪潮/上研等大合同流。</p>
+              </article>
+              <article>
+                <strong>2</strong>
+                <span>合同边界</span>
+                <p>以 Word 前向/后向合同文本确定合同主体、金额、税率和付款条款。</p>
+              </article>
+              <article>
+                <strong>3</strong>
+                <span>多对多映射</span>
+                <p>一个前向合同可拆到多个后向合同，多个前向合同也可汇入一个后向合同。</p>
+              </article>
+              <article>
+                <strong>4</strong>
+                <span>设备清单池</span>
+                <p>Excel 各 sheet 只是设备/软件/服务清单池，不作为合同边界。</p>
+              </article>
+              <article>
+                <strong>5</strong>
+                <span>人工确认</span>
+                <p>候选关系必须逐条确认后，才允许进入设备级资金流计算。</p>
+              </article>
+            </div>
+          </section>
+          <section class="surface contract-system-panel">
+            <div class="section-head compact-head">
+              <h3>合同关系重构工作台</h3>
+              <span>先看宏观合同流，再看合同文本匹配，最后确认前后向多对多关系</span>
+            </div>
+            <div class="contract-system-metrics" id="contractSystemMetrics"></div>
+            <div class="contract-system-grid">
+              <article class="contract-system-card">
+                <div class="section-head compact-head">
+                  <div>
+                    <h4>宏观合同流骨架</h4>
+                    <span>来自 Excel `合同流` 尾部，不等同于设备清单 sheet</span>
+                  </div>
+                  <button class="link-btn" data-select-macro-flow="">全部宏观流</button>
+                </div>
+                <div class="table-wrap contract-system-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>行号</th>
+                        <th>宏观合同流</th>
+                        <th>链路</th>
+                        <th>天安侧金额</th>
+                        <th>链路类型</th>
+                      </tr>
+                    </thead>
+                    <tbody id="macroFlowRows"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="contract-system-card">
+                <div class="section-head compact-head">
+                  <h4>Word 合同匹配概览</h4>
+                  <span>合同文本决定合同边界，sheet 不决定合同边界</span>
+                </div>
+                <div class="table-wrap contract-system-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>方向</th>
+                        <th>合同</th>
+                        <th>主体</th>
+                        <th>税率</th>
+                        <th>匹配合同流</th>
+                      </tr>
+                    </thead>
+                    <tbody id="contractDocMatchRows"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="contract-system-card wide">
+                <div class="section-head compact-head">
+                  <h4>前向合同 → 天安 → 后向合同 多对多候选关系</h4>
+                  <span>确认对象是“前向合同与后向合同的关系”，不是 sheet 与合同流的关系</span>
+                </div>
+                <div class="contract-review-guide">
+                  <strong>确认口径：</strong>
+                  <span>先确认两份合同是否命中同一宏观合同流，再比对主体、金额、税率、设备/服务关键词和付款条款。</span>
+                  <span>确认后仍只是合同级关系，后续还要继续拆到设备清单行、NodeID、业主审计和阶段付款节点。</span>
+                </div>
+                <div class="contract-filter-bar" aria-label="前后向合同候选关系筛选">
+                  <label><span>搜索</span><input type="search" data-contract-filter="query" placeholder="合同名、主体、设备关键词" /></label>
+                  <label><span>确认状态</span><select data-contract-filter="decision"><option value="all">全部</option><option value="candidate">待确认</option><option value="confirmed">已确认</option><option value="rejected">已否决</option></select></label>
+                  <label><span>置信度</span><select data-contract-filter="confidence"><option value="all">全部</option><option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select></label>
+                  <label><span>税率</span><select data-contract-filter="taxRate"><option value="all">全部</option><option value="13%">13%</option><option value="10%">10%</option><option value="6%">6%</option><option value="none">待确认</option></select></label>
+                </div>
+                <div class="contract-evidence-panel" id="contractCandidateEvidencePanel"></div>
+                <div class="table-wrap contract-system-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>置信度</th>
+                        <th>前向合同</th>
+                        <th>后向合同</th>
+                        <th>共同合同流/税率</th>
+                        <th>匹配依据</th>
+                        <th>证据/状态</th>
+                      </tr>
+                    </thead>
+                    <tbody id="frontBackCandidateRows"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="contract-system-card wide">
+                <div class="section-head compact-head">
+                  <h4>设备级资金流单元</h4>
+                  <span>最终核算对象不是合同，而是设备/服务项在前后向合同之间的资金流单元</span>
+                </div>
+                <div class="contract-review-guide">
+                  <strong>钻取链路：</strong>
+                  <span>前向合同明细 → 设备/服务项 → NodeID/点位 → 业主审计 → 前向回款 → 后向付款释放。</span>
+                  <span>当前先展示模型占位；只有确认前后向合同关系后，才能进入设备级拆分。</span>
+                </div>
+                <div class="table-wrap contract-system-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>宏观合同流</th>
+                        <th>前向合同</th>
+                        <th>后向合同</th>
+                        <th>设备/服务项</th>
+                        <th>税率</th>
+                        <th>NodeID / 点位</th>
+                        <th>业主审计</th>
+                        <th>资金状态</th>
+                      </tr>
+                    </thead>
+                    <tbody id="deviceCashflowRows"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="contract-system-card wide">
+                <div class="section-head compact-head">
+                  <h4>业主设备级审计跟踪</h4>
+                  <span>上游是否可回款、下游是否可付款，都要受设备级审计结果约束</span>
+                </div>
+                <div class="table-wrap contract-system-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>设备级单元</th>
+                        <th>NodeID / 点位</th>
+                        <th>审计状态</th>
+                        <th>审计确认金额</th>
+                        <th>上游回款影响</th>
+                        <th>后向付款影响</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ownerAuditRows"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="contract-system-card wide">
+                <div class="section-head compact-head">
+                  <h4>阶段付款释放看板</h4>
+                  <span>设备级也要按预付款、到货、安装、验收、审计、质保等阶段部分释放</span>
+                </div>
+                <div class="table-wrap contract-system-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>阶段</th>
+                        <th>触发条件</th>
+                        <th>业主审计要求</th>
+                        <th>上游回款要求</th>
+                        <th>后向付款释放规则</th>
+                      </tr>
+                    </thead>
+                    <tbody id="paymentStageRows"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
         </section>
 
         <section class="panel" id="warehouse">
@@ -411,7 +584,7 @@
             </section>
             <section class="surface document-table-panel">
               <div class="section-head compact-head">
-                <h3>文件元数据样例</h3>
+                <h3>合同文档扫描清单</h3>
                 <span id="documentRecordCount">不加载原件</span>
               </div>
               <div class="table-wrap">
@@ -420,11 +593,11 @@
                     <tr>
                       <th>文件名</th>
                       <th>分类</th>
+                      <th>合同线索</th>
+                      <th>金额</th>
+                      <th>日期</th>
+                      <th>标记</th>
                       <th>类型</th>
-                      <th>大小</th>
-                      <th>关联对象</th>
-                      <th>审核</th>
-                      <th>解析</th>
                       <th>质检</th>
                     </tr>
                   </thead>

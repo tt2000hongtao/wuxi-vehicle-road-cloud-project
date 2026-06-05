@@ -43,12 +43,34 @@ const state = {
     summary: null,
     records: [],
   },
+  contractReview: {
+    decisions: {},
+    filters: {
+      query: "",
+      decision: "all",
+      confidence: "all",
+      taxRate: "all",
+    },
+    selectedCandidateId: "",
+  },
+  contractRelationships: {
+    loading: true,
+    error: "",
+    summary: null,
+    macroFlows: [],
+    contracts: [],
+    contractToMacroFlowMatches: [],
+    frontBackRelationshipCandidates: [],
+    deviceCashflowSchema: null,
+    ownerAuditTrackingModel: null,
+    paymentStageTemplates: [],
+    selectedMacroFlowId: "",
+  },
 };
 
 const data = window.PROTOTYPE_DATA;
 const sites = data.sites;
 const sitesByNodeId = new Map(sites.map((site) => [String(site.nodeId || "").trim(), site]));
-const contracts = data.contracts;
 const roadsideStatusState = {
   currentDate: window.ROADSIDE_STATUS_DATA?.importDate || "2026-05-18",
   currentRows: normalizeRoadsideStatusRows(window.ROADSIDE_STATUS_DATA?.rows || []),
@@ -65,6 +87,7 @@ const mapAssetState = {
 };
 const ROADSIDE_STATUS_STORAGE_KEY = "wuxi-roadside-status-state-v1";
 const VISUAL_THEME_STORAGE_KEY = "wuxi-project-visual-theme-v1";
+const CONTRACT_REVIEW_STORAGE_KEY = "wuxi-contract-review-decisions-v1";
 const visualThemes = ["macos", "command", "trajectory"];
 const persistenceState = {
   backendAvailable: false,
@@ -163,7 +186,7 @@ const pageHeaders = {
   mapAssets: ["地图资产", "按路口聚合 MAP、RSI、信号机 Excel 和 SVG 预览，支持完整性校核与文件穿透"],
   imports: ["导入中心", "点位管理表、设备管理表、路侧设备状态表、合同和资料导入的预览、校验、确认与报告"],
   coordinates: ["坐标异常", "业务页面以 GCJ-02 为准；CGCS2000 仅作为原始数据审计字段保存"],
-  contracts: ["合同管理", "合同流图谱、天安前向合同、天安后向合同、设备级合同明细和履约节点"],
+  contracts: ["合同管理", "基于 Excel 宏观合同流和 Word 前后向合同文本，重构经天安形成的多对多资金关系"],
   warehouse: ["出入库管理", "一期原型展示送货、入库、领料和安装数量差异"],
   documents: ["文档资产中心", "元数据、版本、业务对象关联、解析质检与云迁移兼容存储"],
   ops: ["运维管理", "每日路侧设备运行状态快照、异常统计、离线设备地图和历史日历"],
@@ -203,6 +226,53 @@ function documentCategoryLabel(category) {
   return documentCategoryMeta[category]?.[0] || category || "未分类";
 }
 
+function documentSubcategoryLabel(subcategory) {
+  const labels = {
+    front_sales_contract: "前向销售合同",
+    back_procurement_contract: "后向采购合同",
+    payment_first_delivery: "第一笔到货款",
+    payment_second_delivery: "第二笔到货款",
+    payment_third_delivery: "第三笔到货款/进度款",
+    workload_list: "工作量清单",
+    sales_procurement_analysis: "销采分析台账",
+    contract_other: "其他合同资料",
+  };
+  return labels[subcategory] || subcategory || "";
+}
+
+function documentCategoryDisplay(record) {
+  const category = documentCategoryLabel(record.documentCategory);
+  const subcategory = documentSubcategoryLabel(record.documentSubcategory);
+  return subcategory ? `${category} / ${subcategory}` : category;
+}
+
+function contractInsightDisplay(record) {
+  const fields = record.extractedFields || {};
+  const itemNo = fields.contractItemNo ? `${fields.contractItemNo} · ` : "";
+  const parties = fields.partyA && fields.partyB ? `${fields.partyA} → ${fields.partyB}` : fields.counterparty || fields.contractName || "-";
+  return `${itemNo}${parties}`;
+}
+
+function fieldFlagsLabel(record) {
+  const fields = record.extractedFields || {};
+  const labels = {
+    supplement: "补充协议",
+    attachment: "附件",
+    voided: "作废线索",
+    invoice: "发票",
+    delivery_receipt: "送/收货单",
+  };
+  const flags = fields.flags || [];
+  return flags.length ? flags.map((flag) => labels[flag] || flag).join("、") : "-";
+}
+
+function contractDirectionLabel(record) {
+  const direction = record.extractedFields?.contractDirection || "";
+  if (direction === "front_sales") return "前向销售";
+  if (direction === "back_procurement") return "后向采购";
+  return documentSubcategoryLabel(record.documentSubcategory) || "-";
+}
+
 function statusLabel(value) {
   const labels = {
     draft: "草稿",
@@ -226,7 +296,10 @@ async function loadDocumentAssets() {
   state.documentAssets.error = "";
   renderDocuments();
   try {
-    const response = await fetch("/api/document-assets", { cache: "no-store" });
+    let response = await fetch("/api/document-assets", { cache: "no-store" });
+    if (!response.ok) {
+      response = await fetch("./data/document-assets.json", { cache: "no-store" });
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     state.documentAssets = {
@@ -254,11 +327,133 @@ function formatNumber(value) {
   return new Intl.NumberFormat("zh-CN").format(value || 0);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function formatMoney(value) {
   if (!value) return "0";
   if (value >= 100000000) return `${(value / 100000000).toFixed(2)} 亿`;
   if (value >= 10000) return `${(value / 10000).toFixed(1)} 万`;
   return formatNumber(value);
+}
+
+function formatMetricValue(value) {
+  if (typeof value === "number") return formatNumber(value);
+  if (typeof value === "string") return value;
+  return formatNumber(value || 0);
+}
+
+function loadContractReviewState() {
+  try {
+    const storage = globalThis.localStorage;
+    const raw = storage?.getItem(CONTRACT_REVIEW_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    state.contractReview.decisions = parsed?.decisions || {};
+  } catch (error) {
+    state.contractReview.decisions = {};
+  }
+}
+
+function saveContractReviewState() {
+  try {
+    const storage = globalThis.localStorage;
+    storage?.setItem(
+      CONTRACT_REVIEW_STORAGE_KEY,
+      JSON.stringify({
+        updatedAt: new Date().toISOString(),
+        decisions: state.contractReview.decisions,
+      }),
+    );
+  } catch (error) {
+    // In restricted preview browsers localStorage can be unavailable; keep the
+    // in-memory decision state so the workbench remains usable.
+  }
+}
+
+function contractCandidateDecision(candidateId) {
+  return state.contractReview.decisions[candidateId] || { status: "candidate" };
+}
+
+function setContractCandidateDecision(candidateId, status) {
+  if (!candidateId) return;
+  if (status === "candidate") {
+    delete state.contractReview.decisions[candidateId];
+  } else {
+    state.contractReview.decisions[candidateId] = {
+      status,
+      reviewer: "当前用户",
+      reviewedAt: new Date().toISOString(),
+      evidence: status === "confirmed" ? "原型人工确认：合同链、金额、税率、分项名称待正式系统复核" : "原型人工否决：候选关系不进入正式资金计算",
+    };
+  }
+  state.contractReview.selectedCandidateId = candidateId;
+  saveContractReviewState();
+  renderContractSystemViews();
+  renderMetrics();
+  renderContractStrip();
+}
+
+function contractReviewStats() {
+  const candidates = state.contractRelationships.frontBackRelationshipCandidates || [];
+  return candidates.reduce(
+    (acc, candidate) => {
+      const status = contractCandidateDecision(candidate.id).status || "candidate";
+      if (status === "confirmed") acc.confirmed += 1;
+      else if (status === "rejected") acc.rejected += 1;
+      else acc.pending += 1;
+      return acc;
+    },
+    { pending: 0, confirmed: 0, rejected: 0 },
+  );
+}
+
+async function loadContractRelationships() {
+  state.contractRelationships.loading = true;
+  state.contractRelationships.error = "";
+  renderContractSystemViews();
+  try {
+    const response = await fetch("./data/contract-relationships.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    state.contractRelationships = {
+      loading: false,
+      error: "",
+      summary: payload.summary || {},
+      macroFlows: payload.macroFlows || [],
+      contracts: payload.contracts || [],
+      contractToMacroFlowMatches: payload.contractToMacroFlowMatches || [],
+      frontBackRelationshipCandidates: payload.frontBackRelationshipCandidates || [],
+      deviceCashflowSchema: payload.deviceCashflowSchema || null,
+      ownerAuditTrackingModel: payload.ownerAuditTrackingModel || null,
+      paymentStageTemplates: payload.paymentStageTemplates || [],
+      selectedMacroFlowId: state.contractRelationships.selectedMacroFlowId || payload.macroFlows?.[0]?.id || "",
+    };
+  } catch (error) {
+    state.contractRelationships = {
+      ...state.contractRelationships,
+      loading: false,
+      error: error.message || "合同关系重构数据读取失败",
+      summary: null,
+      macroFlows: [],
+      contracts: [],
+      contractToMacroFlowMatches: [],
+      frontBackRelationshipCandidates: [],
+      deviceCashflowSchema: null,
+      ownerAuditTrackingModel: null,
+      paymentStageTemplates: [],
+      selectedMacroFlowId: "",
+    };
+  }
+  renderContractSystemViews();
+  renderMetrics();
+  renderContractStrip();
 }
 
 function districtClass(site) {
@@ -536,6 +731,7 @@ function setPanel(panelId) {
   if (panelId === "sites") requestAnimationFrame(applySiteViewLayoutSettled);
   if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => { applySiteViewLayoutSettled(); renderMap($("#siteMap"), filteredSites()); });
   if (panelId === "mapAssets") renderMapAssets();
+  if (panelId === "contracts") renderContracts();
   if (panelId === "documents") renderDocuments();
   if (panelId === "coordinates") requestAnimationFrame(renderCoordinateIssues);
   if (panelId === "ops") requestAnimationFrame(renderOps);
@@ -1090,7 +1286,19 @@ function renderMetrics() {
   $("#metricSiteTotal").textContent = formatNumber(data.stats.siteTotal);
   $("#metricDeviceRows").textContent = formatNumber(data.stats.deviceRows);
   $("#metricUnmatchedRows").textContent = formatNumber(data.stats.unmatchedRows);
-  $("#metricContractRows").textContent = "前向 7 / 后向 10";
+  const cr = state.contractRelationships;
+  const summary = cr.summary || {};
+  const contractMetric = $("#metricContractRows");
+  if (contractMetric) {
+    if (cr.loading) contractMetric.textContent = "读取中";
+    else if (cr.error) contractMetric.textContent = "需重建";
+    else contractMetric.textContent = `前向 ${formatNumber(summary.frontContractCount || 0)} / 后向 ${formatNumber(summary.backContractCount || 0)}`;
+  }
+  const contractMetricHint = $('.metric-link[data-panel-link="contracts"] small');
+  if (contractMetricHint) {
+    const candidates = summary.frontBackCandidateCount ?? cr.frontBackRelationshipCandidates.length;
+    contractMetricHint.textContent = cr.loading ? "读取合同关系" : `${formatNumber(candidates)} 条候选待确认`;
+  }
   const unmatchedHint = $("#overviewUnmatchedCard small");
   if (unmatchedHint) unmatchedHint.textContent = `${formatNumber(data.stats.unmatchedRows)} 条待治理`;
 }
@@ -1117,15 +1325,36 @@ function renderStatusProgress() {
 }
 
 function renderContractStrip() {
-  $("#contractStrip").innerHTML = contracts
+  const holder = $("#contractStrip");
+  if (!holder) return;
+  const cr = state.contractRelationships;
+  const summary = cr.summary || {};
+  const reviewStats = contractReviewStats();
+  if (cr.loading) {
+    holder.innerHTML = `
+      <div class="contract-row contract-row-muted"><div><b>正在读取合同关系重构数据</b><span>读取 Excel 宏观合同流、Word 合同解析和前后向候选关系</span></div><span class="status-pill warn">读取中</span></div>
+      <div class="contract-row contract-row-muted"><div><b>设备级资金流闸门</b><span>未确认的候选关系不会进入付款或毛利计算</span></div><span class="status-pill warn">锁定</span></div>`;
+    return;
+  }
+  if (cr.error) {
+    holder.innerHTML = `<div class="contract-row contract-row-muted"><div><b>合同关系数据读取失败</b><span>${escapeHtml(cr.error)}</span></div><span class="status-pill error">失败</span></div>`;
+    return;
+  }
+  const rows = [
+    ["Word 合同边界", `共 ${formatNumber(summary.contractDocumentCount || 0)} 份，前向 ${formatNumber(summary.frontContractCount || 0)} / 后向 ${formatNumber(summary.backContractCount || 0)}`, "文本边界", "done"],
+    ["前后向多对多候选", `${formatNumber(summary.frontBackCandidateCount ?? cr.frontBackRelationshipCandidates.length)} 条候选；${formatNumber(reviewStats.pending)} 条待确认`, "待确认", reviewStats.pending ? "warn" : "done"],
+    ["资金计算闸门", "候选关系确认后才能拆到设备级资金流单元；未确认关系保持锁定", "锁定", "warn"],
+    ["审计与阶段付款", "业主设备级审计结果决定上游回款，下游按预付/到货/安装/验收/审计/质保阶段释放", "设备级", "done"],
+  ];
+  holder.innerHTML = rows
     .map(
-      (contract) => `
+      ([title, desc, status, cls]) => `
         <div class="contract-row">
           <div>
-            <b>${contract.package}</b>
-            <span>${contract.path} / ${contract.risk}</span>
+            <b>${escapeHtml(title)}</b>
+            <span>${escapeHtml(desc)}</span>
           </div>
-          <span class="status-pill ${contract.status === "已签署" ? "done" : "warn"}">${contract.status}</span>
+          <span class="status-pill ${cls}">${escapeHtml(status)}</span>
         </div>
       `,
     )
@@ -2122,25 +2351,356 @@ function renderDevices() {
 }
 
 function renderContracts() {
-  $("#flowBoard").innerHTML = contracts
-    .map((contract) => {
-      const nodes = contract.path.split("->").map((node) => node.trim());
-      return `
-        <div class="flow-row">
-          <div class="flow-path">
-            ${nodes
-              .map((node, index) => {
-                const arrow = index === nodes.length - 1 ? "" : '<span class="flow-arrow">→</span>';
-                return `<span class="flow-node">${node}</span>${arrow}`;
-              })
-              .join("")}
-          </div>
-          <b>${contract.package}</b>
-          <p>${formatMoney(contract.amount)} / ${contract.status} / ${contract.risk}</p>
-        </div>
-      `;
-    })
-    .join("");
+  renderContractSystemViews();
+}
+
+function chainText(chain) {
+  return (chain || []).filter(Boolean).join(" → ") || "-";
+}
+
+function contractDirectionText(direction) {
+  if (direction === "front_sales") return "前向";
+  if (direction === "back_procurement") return "后向";
+  return "待判定";
+}
+
+function contractDirectionPillClass(direction) {
+  return direction === "front_sales" ? "done" : direction === "back_procurement" ? "warn" : "";
+}
+
+function contractCandidateSearchText(candidate) {
+  return [
+    candidate.frontContractName,
+    candidate.backContractName,
+    ...(candidate.partyOverlap || []),
+    ...(candidate.keywordOverlap || []),
+    ...(candidate.taxRateOverlap || []),
+    ...(candidate.reasons || []),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function filterContractCandidates(candidates) {
+  const filters = state.contractReview.filters || {};
+  const query = (filters.query || "").trim().toLowerCase();
+  return candidates.filter((candidate) => {
+    const decisionStatus = contractCandidateDecision(candidate.id).status || "candidate";
+    if (filters.decision && filters.decision !== "all" && decisionStatus !== filters.decision) return false;
+    if (filters.confidence && filters.confidence !== "all" && candidate.confidence !== filters.confidence) return false;
+    if (filters.taxRate && filters.taxRate !== "all") {
+      const rates = candidate.taxRateOverlap || [];
+      if (filters.taxRate === "none") {
+        if (rates.length) return false;
+      } else if (!rates.includes(filters.taxRate)) {
+        return false;
+      }
+    }
+    if (query && !contractCandidateSearchText(candidate).includes(query)) return false;
+    return true;
+  });
+}
+
+function confirmedContractCandidates() {
+  const cr = state.contractRelationships;
+  return (cr.frontBackRelationshipCandidates || []).filter((candidate) => {
+    if (contractCandidateDecision(candidate.id).status !== "confirmed") return false;
+    if (cr.selectedMacroFlowId && !(candidate.sharedMacroFlowIds || []).includes(cr.selectedMacroFlowId)) return false;
+    return true;
+  });
+}
+
+function candidatePrimaryMacroFlow(candidate, macroById) {
+  return macroById.get(candidate?.sharedMacroFlowIds?.[0]) || {};
+}
+
+function candidatePrimaryItemName(candidate) {
+  return (candidate?.keywordOverlap || []).slice(0, 4).join("、") || "待抽取合同附件设备/服务项";
+}
+
+function buildDeviceCashflowPreviewUnits(macroById, limit = 40) {
+  return confirmedContractCandidates().slice(0, limit).map((candidate, index) => {
+    const flow = candidatePrimaryMacroFlow(candidate, macroById);
+    const taxRates = candidate.taxRateOverlap || [];
+    const taxRate = taxRates[0] || "待确认";
+    const itemName = candidatePrimaryItemName(candidate);
+    return {
+      id: `preview-cashflow-${index + 1}`,
+      candidateId: candidate.id,
+      macroFlowName: flow.packageName || `共同宏观流 ${(candidate.sharedMacroFlowIds || []).length} 条`,
+      frontContractName: candidate.frontContractName || "-",
+      backContractName: candidate.backContractName || "-",
+      itemName,
+      nodeId: "待绑定",
+      siteName: "待绑定点位",
+      quantity: "待拆分",
+      frontTaxRate: taxRate,
+      backTaxRate: taxRate,
+      ownerAuditStatus: "待拆分后申报",
+      auditConfirmedAmount: "0",
+      upstreamStatus: "未释放",
+      downstreamStatus: "锁定",
+      risk: "未形成设备级清单、NodeID 和业主审计结果",
+    };
+  });
+}
+
+function countConfirmedDevicePreviewUnits() {
+  return confirmedContractCandidates().length;
+}
+
+function renderContractCandidateEvidence(candidate, macroById) {
+  const panel = $("#contractCandidateEvidencePanel");
+  if (!panel) return;
+  if (!candidate) {
+    panel.innerHTML = `
+      <div class="contract-evidence-empty">
+        <strong>未选择候选关系</strong>
+        <span>点击候选关系中的“证据”按钮，查看主体、关键词、税率和宏观流命中依据。</span>
+      </div>`;
+    return;
+  }
+  const sharedFlows = (candidate.sharedMacroFlowIds || []).map((id) => macroById.get(id)?.packageName || id).slice(0, 6);
+  const decision = contractCandidateDecision(candidate.id).status || "candidate";
+  const decisionText = decision === "confirmed" ? "已确认" : decision === "rejected" ? "已否决" : "待确认";
+  panel.innerHTML = `
+    <div class="contract-evidence-title">
+      <div>
+        <strong>${escapeHtml(candidate.frontContractName || "-")}</strong>
+        <span>经天安候选对应</span>
+        <strong>${escapeHtml(candidate.backContractName || "-")}</strong>
+      </div>
+      <span class="status-pill ${decision === "confirmed" ? "done" : decision === "rejected" ? "error" : "warn"}">${escapeHtml(decisionText)}</span>
+    </div>
+    <div class="contract-evidence-grid">
+      <span><b>共同宏观流</b>${escapeHtml(sharedFlows.join("；") || "未命中共同宏观流")}</span>
+      <span><b>主体重合</b>${escapeHtml((candidate.partyOverlap || []).join("、") || "无")}</span>
+      <span><b>税率重合</b>${escapeHtml((candidate.taxRateOverlap || []).join(" / ") || "待确认")}</span>
+      <span><b>设备/服务关键词</b>${escapeHtml((candidate.keywordOverlap || []).slice(0, 12).join("、") || "待抽取")}</span>
+      <span class="wide"><b>匹配依据</b>${escapeHtml((candidate.reasons || []).join("；") || "-")}</span>
+      <span class="wide"><b>资金闸门</b>${escapeHtml(candidate.importantNote || "候选关系必须人工确认后才能进入设备级资金流计算。")}</span>
+    </div>`;
+}
+
+function renderContractSystemViews() {
+  const cr = state.contractRelationships;
+  const status = $("#contractRelationshipStatus");
+  const metrics = $("#contractSystemMetrics");
+  const macroRows = $("#macroFlowRows");
+  const docRows = $("#contractDocMatchRows");
+  const candidateRows = $("#frontBackCandidateRows");
+  const deviceCashflowRows = $("#deviceCashflowRows");
+  const ownerAuditRows = $("#ownerAuditRows");
+  const paymentStageRows = $("#paymentStageRows");
+  if (!status && !metrics && !macroRows && !docRows && !candidateRows && !deviceCashflowRows && !ownerAuditRows && !paymentStageRows) return;
+
+  if (status) {
+    if (cr.loading) {
+      status.textContent = "正在读取 Excel 合同流尾部和 Word 合同匹配结果...";
+    } else if (cr.error) {
+      status.textContent = `合同关系重构数据读取失败：${cr.error}`;
+    } else {
+      status.textContent = "已按“Excel 宏观合同流 + Word 前后向合同文本”重构候选关系；设备清单 sheet 不作为合同边界。";
+    }
+  }
+
+  const summary = cr.summary || {};
+  const reviewStats = contractReviewStats();
+  const macroById = new Map(cr.macroFlows.map((flow) => [flow.id, flow]));
+  if (metrics) {
+    const confirmedPreviewUnits = countConfirmedDevicePreviewUnits();
+    const cards = [
+      ["宏观合同流", summary.macroFlowCount ?? cr.macroFlows.length, "Excel 合同流尾部"],
+      ["Word 合同", summary.contractDocumentCount ?? cr.contracts.length, `前向 ${summary.frontContractCount || 0} / 后向 ${summary.backContractCount || 0}`],
+      ["前后向候选", summary.frontBackCandidateCount ?? cr.frontBackRelationshipCandidates.length, "多对多，不是 sheet 关系"],
+      ["待确认", reviewStats.pending, "不进入资金计算"],
+      ["确认/否决", `${reviewStats.confirmed} / ${reviewStats.rejected}`, `${confirmedPreviewUnits} 条待设备级拆分`],
+      ["税率线索", Object.entries(summary.taxRateCounts || {}).map(([k, v]) => `${k}:${v}`).join(" / ") || "待解析", "一级匹配字段"],
+      ["审计付款闸门", cr.paymentStageTemplates?.length || 6, "预付/到货/安装/验收/审计/质保"],
+    ];
+    metrics.innerHTML = cards
+      .map(
+        ([label, value, note]) => `
+          <article class="metric contract-system-metric">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(formatMetricValue(value))}</strong>
+            <small>${escapeHtml(note)}</small>
+          </article>
+        `,
+      )
+      .join("");
+  }
+
+  if (macroRows) {
+    const flows = [...cr.macroFlows].sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+    macroRows.innerHTML = flows.length
+      ? flows
+          .map(
+            (flow) => `
+              <tr class="${flow.id === cr.selectedMacroFlowId ? "selected-row" : ""}" data-select-macro-flow="${escapeHtml(flow.id)}">
+                <td>${escapeHtml(flow.rowNumber || "-")}</td>
+                <td><strong>${escapeHtml(flow.packageName || "-")}</strong><br /><small>金额 ${escapeHtml(formatMoney(flow.packageAmount || 0))}</small></td>
+                <td>${escapeHtml(chainText(flow.chain))}</td>
+                <td>${escapeHtml(formatMoney(flow.tiananAmount || flow.packageAmount || 0))}</td>
+                <td><span class="status-pill ${flow.flowType === "mobile_to_tianan" ? "warn" : "done"}">${escapeHtml(flow.flowType === "mobile_to_tianan" ? "经天安回流/拆分" : flow.flowType === "tianan_direct" ? "天安直接拆分" : "其他")}</span></td>
+              </tr>
+            `,
+          )
+          .join("")
+      : `<tr><td colspan="5">${cr.loading ? "正在读取宏观合同流..." : "暂无宏观合同流记录"}</td></tr>`;
+  }
+
+  if (docRows) {
+    const matchByContract = new Map(cr.contractToMacroFlowMatches.map((item) => [item.contractId, item]));
+    const docs = [...cr.contracts]
+      .filter((doc) => {
+        if (!cr.selectedMacroFlowId) return true;
+        return (matchByContract.get(doc.id)?.matches || []).some((match) => match.macroFlowId === cr.selectedMacroFlowId);
+      })
+      .sort((a, b) => String(a.direction || "").localeCompare(String(b.direction || "")) || String(a.fileName || "").localeCompare(String(b.fileName || ""), "zh-CN"))
+      .slice(0, 120);
+    docRows.innerHTML = docs.length
+      ? docs
+          .map((doc) => {
+            const match = matchByContract.get(doc.id);
+            const top = match?.matches?.[0];
+            return `
+              <tr>
+                <td><span class="status-pill ${contractDirectionPillClass(doc.direction)}">${escapeHtml(contractDirectionText(doc.direction))}</span></td>
+                <td><strong>${escapeHtml(doc.fileName || "-")}</strong><br /><small>文本 ${escapeHtml(formatNumber(doc.textLength || 0))} 字</small></td>
+                <td>${escapeHtml(chainText(doc.parties))}</td>
+                <td>${escapeHtml((doc.taxRates || []).join(" / ") || "待确认")}</td>
+                <td>${top ? `${escapeHtml(top.macroFlowPackage)}<br /><small>${escapeHtml((top.reasons || []).join("；"))}</small>` : "未匹配"}</td>
+              </tr>
+            `;
+          })
+          .join("")
+      : `<tr><td colspan="5">${cr.loading ? "正在读取 Word 合同..." : "暂无合同匹配记录"}</td></tr>`;
+  }
+
+  let visibleCandidates = [];
+  if (candidateRows) {
+    const baseCandidates = [...cr.frontBackRelationshipCandidates]
+      .filter((candidate) => !cr.selectedMacroFlowId || (candidate.sharedMacroFlowIds || []).includes(cr.selectedMacroFlowId));
+    visibleCandidates = filterContractCandidates(baseCandidates)
+      .sort((a, b) => {
+        const statusRank = { candidate: 0, confirmed: 1, rejected: 2 };
+        const aStatus = contractCandidateDecision(a.id).status || "candidate";
+        const bStatus = contractCandidateDecision(b.id).status || "candidate";
+        return (statusRank[aStatus] ?? 0) - (statusRank[bStatus] ?? 0) || (b.score || 0) - (a.score || 0);
+      })
+      .slice(0, 160);
+    if (state.contractReview.selectedCandidateId && !visibleCandidates.some((candidate) => candidate.id === state.contractReview.selectedCandidateId)) {
+      state.contractReview.selectedCandidateId = "";
+    }
+    if (!state.contractReview.selectedCandidateId && visibleCandidates.length) {
+      state.contractReview.selectedCandidateId = visibleCandidates[0].id;
+    }
+    const selectedCandidate = visibleCandidates.find((candidate) => candidate.id === state.contractReview.selectedCandidateId);
+    renderContractCandidateEvidence(selectedCandidate, macroById);
+    candidateRows.innerHTML = visibleCandidates.length
+      ? visibleCandidates
+          .map((candidate) => {
+            const decision = contractCandidateDecision(candidate.id);
+            const decisionStatus = decision.status || "candidate";
+            const confidenceClass = candidate.confidence === "high" ? "done" : candidate.confidence === "medium" ? "warn" : "error";
+            const decisionClass = decisionStatus === "confirmed" ? "done" : decisionStatus === "rejected" ? "error" : "warn";
+            const decisionText = decisionStatus === "confirmed" ? "已确认" : decisionStatus === "rejected" ? "已否决" : "待确认";
+            const flowNames = (candidate.sharedMacroFlowIds || [])
+              .map((id) => macroById.get(id)?.packageName)
+              .filter(Boolean)
+              .slice(0, 2);
+            return `
+              <tr class="${candidate.id === state.contractReview.selectedCandidateId ? "selected-row" : ""}">
+                <td><span class="status-pill ${confidenceClass}">${escapeHtml(candidate.confidence || "candidate")}</span><br /><small>score ${escapeHtml(candidate.score ?? "-")}</small></td>
+                <td><strong>${escapeHtml(candidate.frontContractName || "-")}</strong></td>
+                <td><strong>${escapeHtml(candidate.backContractName || "-")}</strong></td>
+                <td>${escapeHtml(flowNames.length ? flowNames.join("；") : `${(candidate.sharedMacroFlowIds || []).length} 条共同宏观流`)}<br /><small>${escapeHtml((candidate.taxRateOverlap || []).join(" / ") || "税率待确认")}</small></td>
+                <td>${escapeHtml((candidate.reasons || []).join("；") || "-")}<br /><small>${escapeHtml((candidate.keywordOverlap || []).slice(0, 8).join("、"))}</small></td>
+                <td>
+                  <button class="link-btn evidence" data-contract-candidate-evidence="${escapeHtml(candidate.id)}">证据</button>
+                  <span class="status-pill ${decisionClass}">${escapeHtml(decisionText)}</span>
+                  <div class="contract-review-actions">
+                    <button class="link-btn" data-contract-candidate-decision="confirmed" data-candidate-id="${escapeHtml(candidate.id)}">确认</button>
+                    <button class="link-btn danger" data-contract-candidate-decision="rejected" data-candidate-id="${escapeHtml(candidate.id)}">否决</button>
+                    <button class="link-btn muted" data-contract-candidate-decision="candidate" data-candidate-id="${escapeHtml(candidate.id)}">恢复</button>
+                  </div>
+                  ${decision.reviewedAt ? `<small>${escapeHtml(new Date(decision.reviewedAt).toLocaleString("zh-CN"))}</small>` : ""}
+                </td>
+              </tr>
+            `;
+          })
+          .join("")
+      : `<tr><td colspan="6">${cr.loading ? "正在生成前后向候选关系..." : "当前筛选条件下暂无前后向候选关系"}</td></tr>`;
+    if (!visibleCandidates.length) renderContractCandidateEvidence(null, macroById);
+  }
+
+  if (deviceCashflowRows) {
+    const previewUnits = buildDeviceCashflowPreviewUnits(macroById, 40);
+    const schema = cr.deviceCashflowSchema || {};
+    deviceCashflowRows.innerHTML = previewUnits.length
+      ? previewUnits
+          .map((candidate) => {
+            return `
+              <tr>
+                <td>${escapeHtml(candidate.macroFlowName)}</td>
+                <td>${escapeHtml(candidate.frontContractName)}</td>
+                <td>${escapeHtml(candidate.backContractName)}</td>
+                <td><span class="status-pill warn">待拆分</span><br /><small>${escapeHtml(candidate.itemName)}</small></td>
+                <td><small>前向 ${escapeHtml(candidate.frontTaxRate)}</small><br /><small>后向 ${escapeHtml(candidate.backTaxRate)}</small></td>
+                <td><span class="status-pill warn">${escapeHtml(candidate.nodeId)}</span><br /><small>${escapeHtml(candidate.siteName)}</small></td>
+                <td><span class="status-pill warn">${escapeHtml(candidate.ownerAuditStatus)}</span><br /><small>审计确认金额 ${escapeHtml(candidate.auditConfirmedAmount)}</small></td>
+                <td><span class="status-pill warn">${escapeHtml(candidate.downstreamStatus)}</span><br /><small>${escapeHtml(candidate.risk)}</small></td>
+              </tr>
+            `;
+          })
+          .join("")
+      : `<tr><td colspan="8">尚无已确认的前后向合同关系。请先在上方候选关系中确认，再进入设备级资金流拆分。最小单元：${escapeHtml(schema.minimumUnit || "前向合同明细 → 后向合同明细 → 清单池行 → NodeID/点位 → 业主审计 → 阶段付款")}。</td></tr>`;
+  }
+
+  if (ownerAuditRows) {
+    const previewUnits = buildDeviceCashflowPreviewUnits(macroById, 30);
+    ownerAuditRows.innerHTML = previewUnits.length
+      ? previewUnits
+          .map((unit, index) => `
+            <tr>
+              <td><strong>设备级单元 ${index + 1}</strong><br /><small>${escapeHtml(unit.itemName)}</small></td>
+              <td><span class="status-pill warn">${escapeHtml(unit.nodeId)}</span><br /><small>${escapeHtml(unit.siteName)}</small></td>
+              <td><span class="status-pill warn">${escapeHtml(unit.ownerAuditStatus)}</span></td>
+              <td>申报/确认金额待业主审计批次写入</td>
+              <td>未通过设备级审计前，不得作为上游可回款依据</td>
+              <td>未形成设备级审计结果和上游资金池前，后向付款保持锁定</td>
+            </tr>
+          `)
+          .join("")
+      : `<tr><td colspan="6">尚无已确认关系。设备级审计跟踪必须在前后向关系确认、设备明细拆分和 NodeID 绑定后生成。</td></tr>`;
+  }
+
+  if (paymentStageRows) {
+    const stages = cr.paymentStageTemplates?.length
+      ? cr.paymentStageTemplates
+      : [
+          { stageName: "预付款", triggerCondition: "合同签署、预付款条款满足", ownerAuditRequirement: "通常不要求设备审计", upstreamRequirement: "背靠背条款下需上游预付款到账", releaseRule: "按设备级资金池和后向条款释放" },
+          { stageName: "到货款", triggerCondition: "到货、入库、发票", ownerAuditRequirement: "可按到货批次预审", upstreamRequirement: "对应设备到货款或可用资金池到账", releaseRule: "按到货数量/金额部分释放" },
+          { stageName: "安装款", triggerCondition: "安装签证、安装数量确认", ownerAuditRequirement: "可按安装点位预审", upstreamRequirement: "对应设备安装阶段回款或资金池可用", releaseRule: "按实际安装数量折算释放" },
+          { stageName: "验收款", triggerCondition: "验收单、验收数量确认", ownerAuditRequirement: "验收资料进入业主审计", upstreamRequirement: "对应设备验收阶段回款或资金池可用", releaseRule: "按验收通过数量/金额释放" },
+          { stageName: "审计款", triggerCondition: "业主审计确认数量和金额", ownerAuditRequirement: "必须有正式审计结果", upstreamRequirement: "审计款到账或可归集到设备资金池", releaseRule: "以审计确认金额为基数释放" },
+          { stageName: "质保金", triggerCondition: "质保期届满、无遗留问题", ownerAuditRequirement: "受最终审计确认金额约束", upstreamRequirement: "质保/尾款到账或可用", releaseRule: "扣除问题和审计扣减后释放" },
+        ];
+    paymentStageRows.innerHTML = stages
+      .map(
+        (stage) => `
+          <tr>
+            <td><strong>${escapeHtml(stage.stageName || "-")}</strong><br /><small>${escapeHtml(stage.stageCode || "")}</small></td>
+            <td>${escapeHtml(stage.triggerCondition || "-")}</td>
+            <td>${escapeHtml(stage.ownerAuditRequirement || "-")}</td>
+            <td>${escapeHtml(stage.upstreamRequirement || "-")}</td>
+            <td>${escapeHtml(stage.releaseRule || "-")}</td>
+          </tr>
+        `,
+      )
+      .join("");
+  }
 }
 
 function renderWarehouse() {
@@ -2331,17 +2891,19 @@ function renderDocuments() {
     rows.innerHTML = records.length
       ? records
           .map((record) => {
-            const relation = record.relation ? `${record.relation.objectType}:${record.relation.objectId}` : "未关联";
+            const fields = record.extractedFields || {};
+            const qualityClass = record.qualityStatus === "normal" && fields.documentStatusHint !== "voided" ? "done" : "warn";
+            const qualityText = fields.documentStatusHint === "voided" ? "需复核" : statusLabel(record.qualityStatus);
             return `
               <tr>
                 <td title="${record.storageKey || ""}">${record.fileName || "-"}</td>
-                <td>${documentCategoryLabel(record.documentCategory)}</td>
-                <td>${(record.fileExt || "-").toUpperCase()}</td>
-                <td>${formatBytes(record.fileSizeBytes)}</td>
-                <td>${relation}</td>
-                <td><span class="status-pill ${record.reviewStatus === "effective" ? "done" : "warn"}">${statusLabel(record.reviewStatus)}</span></td>
-                <td><span class="status-pill ${record.parseStatus === "success" ? "done" : "warn"}">${statusLabel(record.parseStatus)}</span></td>
-                <td><span class="status-pill ${record.qualityStatus === "normal" ? "done" : "warn"}">${statusLabel(record.qualityStatus)}</span></td>
+                <td>${documentCategoryDisplay(record)}</td>
+                <td>${contractInsightDisplay(record)}</td>
+                <td>${fields.amountText || "-"}</td>
+                <td>${fields.signDate || "-"}</td>
+                <td>${fieldFlagsLabel(record)}</td>
+                <td>${(record.fileExt || "-").toUpperCase()} · ${formatBytes(record.fileSizeBytes)}</td>
+                <td><span class="status-pill ${qualityClass}">${qualityText}</span></td>
               </tr>
             `;
           })
@@ -3216,6 +3778,23 @@ function bindEvents() {
       confirmImport(confirmButton.dataset.confirmImport);
       return;
     }
+    const contractEvidence = event.target.closest("[data-contract-candidate-evidence]");
+    if (contractEvidence) {
+      state.contractReview.selectedCandidateId = contractEvidence.dataset.contractCandidateEvidence || "";
+      renderContractSystemViews();
+      return;
+    }
+    const contractDecision = event.target.closest("[data-contract-candidate-decision]");
+    if (contractDecision) {
+      setContractCandidateDecision(contractDecision.dataset.candidateId, contractDecision.dataset.contractCandidateDecision);
+      return;
+    }
+    const macroFlowSelect = event.target.closest("[data-select-macro-flow]");
+    if (macroFlowSelect) {
+      state.contractRelationships.selectedMacroFlowId = macroFlowSelect.dataset.selectMacroFlow || "";
+      renderContractSystemViews();
+      return;
+    }
     const finishButton = event.target.closest("[data-import-finish]");
     if (finishButton) {
       const finishType = finishButton.dataset.importFinish;
@@ -3422,7 +4001,22 @@ function bindEvents() {
   });
   $("#exportAllMapAssets").addEventListener("click", exportAllMapAssets);
   $("#exportIncompleteMapAssets").addEventListener("click", exportIncompleteMapAssets);
+  document.body.addEventListener("input", (event) => {
+    const filter = event.target.closest("[data-contract-filter]");
+    if (!filter) return;
+    state.contractReview.filters[filter.dataset.contractFilter] = filter.value;
+    state.contractReview.selectedCandidateId = "";
+    renderContractSystemViews();
+  });
+  document.body.addEventListener("change", (event) => {
+    const filter = event.target.closest("[data-contract-filter]");
+    if (!filter) return;
+    state.contractReview.filters[filter.dataset.contractFilter] = filter.value;
+    state.contractReview.selectedCandidateId = "";
+    renderContractSystemViews();
+  });
   $("#refreshDocumentAssets")?.addEventListener("click", loadDocumentAssets);
+  $("#refreshContractRelationships")?.addEventListener("click", loadContractRelationships);
   $("#showDocumentStorageRule")?.addEventListener("click", () => {
     alert("文档原件进入 document_assets/raw 或对象存储；数据库保存 storage_key、sha256、版本、业务关系、解析结果和审计，不把大文件写入前端 data.js。");
   });
@@ -3462,6 +4056,7 @@ function bindEvents() {
 
 async function init() {
   state.visualTheme = loadVisualTheme();
+  loadContractReviewState();
   applyVisualTheme(state.visualTheme);
   await loadRoadsideStatusState();
   renderPageHeader();
@@ -3481,6 +4076,7 @@ async function init() {
   bindEvents();
   loadMapAssets();
   loadDocumentAssets();
+  loadContractRelationships();
 }
 
 init();
