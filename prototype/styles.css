@@ -1164,13 +1164,52 @@ body[data-visual-theme="trajectory"] .site-card-meta span {
 
 .contract-system-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(8, minmax(112px, 1fr));
+  gap: 8px;
   margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .contract-system-metric strong {
-  font-size: 24px;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: clamp(13px, 0.95vw, 16px);
+  line-height: 1.05;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contract-system-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  min-width: 0;
+  min-height: 58px;
+  padding: 9px 10px;
+  align-content: center;
+  gap: 4px 6px;
+}
+
+.contract-system-metric span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contract-system-metric small {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contract-system-grid {
@@ -1202,12 +1241,118 @@ body[data-visual-theme="trajectory"] .site-card-meta span {
   margin-bottom: 10px;
 }
 
+.contract-card-titleline {
+  gap: 10px;
+  align-items: center;
+  flex-direction: row;
+}
+
+.contract-card-titleline > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.contract-card-titleline h4,
+.contract-card-titleline span {
+  min-width: 0;
+}
+
+.contract-card-titleline span {
+  display: inline;
+  flex: 1;
+  overflow: hidden;
+  color: #4f6367;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .contract-system-table-wrap {
   max-height: 440px;
 }
 
 .contract-system-table-wrap table {
   min-width: 980px;
+}
+
+.contract-system-table-wrap th,
+.contract-system-table-wrap td {
+  border: 1px solid var(--line);
+}
+
+.contract-system-table-wrap th {
+  background: #f7fbfb;
+  opacity: 1;
+}
+
+body[data-visual-theme="command"] .contract-system-table-wrap th {
+  background: #0f232c;
+  color: #aeefff;
+  opacity: 1;
+}
+
+body[data-visual-theme="trajectory"] .contract-system-table-wrap th {
+  background: #373c3d;
+  opacity: 1;
+}
+
+.resizable-contract-table {
+  table-layout: fixed;
+  width: max-content;
+}
+
+.resizable-contract-table th {
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+#frontSalesContractTable th:nth-child(4),
+#frontSalesContractTable .front-contract-amount {
+  text-align: right;
+}
+
+#frontSalesContractTable td[rowspan] {
+  text-align: center;
+  vertical-align: middle;
+}
+
+#frontSalesContractTable th,
+#frontSalesContractTable td {
+  white-space: nowrap;
+}
+
+#frontSalesContractTable th:nth-child(2),
+#frontSalesContractTable th:nth-child(3),
+#frontSalesContractTable th:nth-child(6),
+#frontSalesContractTable .front-contract-file,
+#frontSalesContractTable .front-contract-link,
+#frontSalesContractTable .front-contract-content {
+  white-space: normal;
+}
+
+.contract-file-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: none;
+}
+
+.contract-file-link:hover,
+.contract-file-link:focus-visible {
+  text-decoration: underline;
 }
 
 .contract-system-table-wrap td:nth-child(2),
@@ -1380,40 +1525,62 @@ body[data-visual-theme="trajectory"] .site-card-meta span {
 
 .contract-link-steps {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .contract-link-steps article {
-  padding: 12px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-column: auto;
+  min-width: 0;
+  min-height: 62px;
+  padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  align-content: center;
+  column-gap: 7px;
+  row-gap: 4px;
 }
 
 .contract-link-steps strong {
   display: inline-grid;
-  width: 24px;
-  height: 24px;
-  margin-bottom: 8px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .contract-link-steps span {
   display: block;
-  margin-bottom: 6px;
+  min-width: 0;
+  overflow: hidden;
+  align-self: center;
+  font-size: 12px;
+  line-height: 1.1;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contract-link-steps p {
+  grid-column: 1 / -1;
   margin: 0;
+  overflow: hidden;
   color: #4f6367;
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #contracts.panel.active {
@@ -5804,9 +5971,38 @@ body[data-visual-theme="trajectory"] .nav-item::before {
   .document-metrics,
   .document-flow-grid,
   .document-layout,
-  .contract-system-metrics,
   .contract-filter-bar {
     grid-template-columns: 1fr;
+  }
+
+  .contract-system-metrics {
+    grid-template-columns: repeat(8, minmax(112px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .contract-system-metrics {
+    grid-template-columns: repeat(8, minmax(112px, 1fr));
+  }
+
+  .contract-link-steps {
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+  }
+
+  .contract-link-steps article,
+  .contract-rebuild-steps article:nth-child(4),
+  .contract-rebuild-steps article:nth-child(5) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .contract-system-metrics {
+    grid-template-columns: repeat(8, minmax(112px, 1fr));
+  }
+
+  .contract-link-steps {
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
   }
 }
 
@@ -5837,4 +6033,1795 @@ body[data-visual-theme="trajectory"] #documents .chips span {
 body[data-visual-theme="command"] #documents .document-flow span:not(:last-child)::after,
 body[data-visual-theme="trajectory"] #documents .document-flow span:not(:last-child)::after {
   color: rgba(234, 255, 255, 0.72);
+}
+
+/* 合同管理重构：人工确权五工作区 */
+.contract-workspace-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 16px;
+  align-items: flex-start;
+}
+
+.contract-head-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.contract-workspace-head .contract-head-actions {
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.contract-workspace-head p,
+.contract-workspace-title p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.contract-head-actions,
+.contract-workspace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.contract-zoom-control {
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(18, 115, 111, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.contract-zoom-control .ghost-btn {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+#contractZoomValue {
+  min-width: 46px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.contract-zoom-surface {
+  --contract-page-scale: 1;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  transform-origin: top left;
+}
+
+@supports not (zoom: 1) {
+  .contract-zoom-surface {
+    width: calc(100% / var(--contract-page-scale));
+    transform: scale(var(--contract-page-scale));
+  }
+}
+
+.contract-zoom-surface.is-scaled .contract-workspace-card {
+  min-height: calc((100vh - 312px) / var(--contract-page-scale));
+}
+
+.contract-workspace-title h3,
+.contract-side-panel h4,
+.contract-workspace-table-wrap h4,
+.contract-profit-grid h4,
+.contract-manual-form h4 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.contract-workspace-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+}
+
+.contract-workspace-tabs button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: #24464c;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.contract-workspace-tabs button.active,
+.contract-workspace-tabs button:hover {
+  border-color: rgba(18, 115, 111, 0.46);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(18, 115, 111, 0.18);
+}
+
+.contract-workspace {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.contract-workspace.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.contract-workspace-card {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: calc(100vh - 312px);
+  flex-direction: column;
+}
+
+.contract-workspace-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.contract-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.contract-workspace-kpi {
+  min-height: 94px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.contract-workspace-kpi strong {
+  font-size: 22px;
+  line-height: 1.1;
+  color: #132f33;
+}
+
+#frontContractKpis .contract-workspace-kpi,
+#backContractKpis .contract-workspace-kpi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  min-width: 0;
+  min-height: 54px;
+}
+
+#frontContractKpis .contract-workspace-kpi span,
+#frontContractKpis .contract-workspace-kpi strong,
+#backContractKpis .contract-workspace-kpi span,
+#backContractKpis .contract-workspace-kpi strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#frontContractKpis .contract-workspace-kpi span,
+#backContractKpis .contract-workspace-kpi span {
+  flex: 0 1 auto;
+}
+
+#frontContractKpis .contract-workspace-kpi strong,
+#backContractKpis .contract-workspace-kpi strong {
+  flex: 1 0 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.contract-workspace-kpi.done {
+  border-color: rgba(46, 125, 88, 0.24);
+  background: #f2fbf6;
+}
+
+.contract-workspace-kpi.risk {
+  border-color: rgba(183, 121, 31, 0.32);
+  background: #fff8ec;
+}
+
+.contract-confirm-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.contract-confirm-layout.two-pane {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.28fr);
+}
+
+.contract-manual-form,
+.contract-side-panel {
+  padding: 14px;
+  border: 1px solid rgba(18, 115, 111, 0.16);
+  border-radius: 12px;
+  background: #f8fcfc;
+  color: #24464c;
+}
+
+.contract-manual-form {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.contract-manual-form label {
+  display: grid;
+  gap: 5px;
+  color: #24464c;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.contract-manual-form input,
+.contract-manual-form select {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(18, 115, 111, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 9px;
+}
+
+.contract-form-note,
+.contract-empty-note {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #fff8ec;
+  color: #73510f;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.contract-side-panel ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #36575c;
+  line-height: 1.7;
+}
+
+.contract-workspace-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  background: #fff;
+}
+
+.contract-workspace-table-wrap table {
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.contract-workspace-table-wrap th,
+.contract-workspace-table-wrap td {
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.contract-workspace-table-wrap th:last-child,
+.contract-workspace-table-wrap td:last-child {
+  border-right: 0;
+}
+
+.contract-workspace-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #0f232c;
+  color: #e6f7f8;
+  opacity: 1;
+  font-weight: 700;
+}
+
+.contract-workspace-table-wrap small {
+  color: #4f6367;
+  line-height: 1.45;
+}
+
+.money-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.contract-line-match-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  min-height: 320px;
+}
+
+.contract-match-control {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed rgba(18, 115, 111, 0.32);
+  border-radius: 12px;
+  background: #f8fcfc;
+  text-align: center;
+}
+
+.contract-match-control span {
+  color: #4f6367;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.confirmed-relations {
+  margin-top: 12px;
+  min-height: 220px;
+}
+
+.contract-profit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.42fr);
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.contract-profit-grid article {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: auto;
+}
+
+.profit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.profit-row:last-child {
+  border-bottom: 0;
+}
+
+.profit-row span {
+  min-width: 0;
+  overflow: hidden;
+  color: #36575c;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profit-row strong {
+  color: #132f33;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-visual-theme="command"] .contract-manual-form,
+body[data-visual-theme="trajectory"] .contract-manual-form,
+body[data-visual-theme="command"] .contract-side-panel,
+body[data-visual-theme="trajectory"] .contract-side-panel,
+body[data-visual-theme="command"] .contract-workspace-kpi,
+body[data-visual-theme="trajectory"] .contract-workspace-kpi,
+body[data-visual-theme="command"] .contract-profit-grid article,
+body[data-visual-theme="trajectory"] .contract-profit-grid article {
+  background: rgba(9, 30, 34, 0.88);
+  color: #eaffff;
+}
+
+body[data-visual-theme="command"] .contract-workspace-title p,
+body[data-visual-theme="trajectory"] .contract-workspace-title p,
+body[data-visual-theme="command"] .contract-side-panel ul,
+body[data-visual-theme="trajectory"] .contract-side-panel ul,
+body[data-visual-theme="command"] .contract-workspace-table-wrap small,
+body[data-visual-theme="trajectory"] .contract-workspace-table-wrap small,
+body[data-visual-theme="command"] .profit-row span,
+body[data-visual-theme="trajectory"] .profit-row span {
+  color: rgba(234, 255, 255, 0.78);
+}
+
+body[data-visual-theme="command"] .contract-workspace-title h3,
+body[data-visual-theme="trajectory"] .contract-workspace-title h3,
+body[data-visual-theme="command"] .contract-workspace-kpi strong,
+body[data-visual-theme="trajectory"] .contract-workspace-kpi strong,
+body[data-visual-theme="command"] .profit-row strong,
+body[data-visual-theme="trajectory"] .profit-row strong {
+  color: #f5ffff;
+}
+
+@media (max-width: 1280px) {
+  .contract-confirm-layout,
+  .contract-confirm-layout.two-pane,
+  .contract-profit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-line-match-board {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 合同管理：人工确认内嵌到表格 */
+.contract-confirm-layout.table-only {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.contract-confirm-layout.table-only .contract-workspace-table-wrap {
+  width: 100%;
+  min-height: 520px;
+}
+
+.contract-confirm-layout.table-only .contract-workspace-table-wrap table {
+  min-width: 1280px;
+}
+
+.contract-inline-select,
+.contract-inline-input {
+  width: 100%;
+  min-width: 120px;
+  height: 34px;
+  border: 1px solid rgba(18, 115, 111, 0.24);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 9px;
+  outline: none;
+}
+
+.contract-inline-select.flow {
+  min-width: 320px;
+  font-weight: 750;
+}
+
+.contract-inline-select.tax {
+  min-width: 92px;
+}
+
+.contract-inline-input.money {
+  min-width: 150px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.contract-inline-select:focus,
+.contract-inline-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(18, 115, 111, 0.14);
+}
+
+.contract-flow-cell {
+  min-width: 360px;
+}
+
+.contract-flow-cell small {
+  display: block;
+  margin-top: 5px;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contract-table-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.contract-table-actions .link-btn {
+  padding: 4px 8px;
+  border: 1px solid rgba(18, 115, 111, 0.24);
+  border-radius: 999px;
+  background: #eef8f7;
+  color: #0d5d59;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.contract-table-actions .link-btn.muted {
+  background: #f3f6f6;
+  color: #52666a;
+}
+
+.contract-table-actions .link-btn.danger {
+  border-color: rgba(181, 59, 59, 0.22);
+  background: #fde8e8;
+  color: #9b1c1c;
+}
+
+body[data-visual-theme="command"] .contract-inline-select,
+body[data-visual-theme="trajectory"] .contract-inline-select,
+body[data-visual-theme="command"] .contract-inline-input,
+body[data-visual-theme="trajectory"] .contract-inline-input {
+  border-color: rgba(114, 245, 255, 0.32);
+  background: rgba(5, 20, 24, 0.92);
+  color: #eaffff;
+}
+
+body[data-visual-theme="command"] .contract-table-actions .link-btn,
+body[data-visual-theme="trajectory"] .contract-table-actions .link-btn {
+  border-color: rgba(114, 245, 255, 0.32);
+  background: rgba(9, 30, 34, 0.92);
+  color: #eaffff;
+}
+
+/* 合同金额/税率初始化：表格内税率多选 */
+.contract-tax-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.contract-tax-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(18, 115, 111, 0.22);
+  border-radius: 999px;
+  background: #eef8f7;
+  color: #0b4f4b;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.contract-tax-check input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+body[data-visual-theme="command"] .contract-tax-check,
+body[data-visual-theme="trajectory"] .contract-tax-check {
+  border-color: rgba(114, 245, 255, 0.34);
+  background: rgba(9, 30, 34, 0.92);
+  color: #eaffff;
+}
+
+/* 合同管理：前向合同标题与副标题同行 */
+.contract-title-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.contract-title-inline p {
+  margin: 0;
+}
+
+/* 合同管理：4 个统计卡片固定一行 */
+#contracts .contract-kpi-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1280px) {
+  #contracts .contract-kpi-row {
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    overflow-x: auto;
+  }
+}
+
+/* 合同管理：按合同流链路分组合并序号/链路列 */
+.contract-group-seq,
+.contract-flow-group-cell {
+  text-align: center;
+  vertical-align: middle;
+  background: rgba(18, 115, 111, 0.045);
+}
+
+.contract-group-seq {
+  min-width: 64px;
+  width: 64px;
+  font-weight: 900;
+  font-size: 16px;
+  color: #0d5d59;
+  font-variant-numeric: tabular-nums;
+}
+
+.contract-flow-group-cell .contract-inline-select.flow {
+  text-align: left;
+}
+
+body[data-visual-theme="command"] .contract-group-seq,
+body[data-visual-theme="command"] .contract-flow-group-cell,
+body[data-visual-theme="trajectory"] .contract-group-seq,
+body[data-visual-theme="trajectory"] .contract-flow-group-cell {
+  background: rgba(114, 245, 255, 0.08);
+  color: #aeefff;
+}
+
+.contract-manual-table tr.contract-confirmed-row > td {
+  background: rgba(18, 115, 111, 0.045);
+}
+
+.contract-manual-table tr.contract-confirmed-row:hover > td {
+  background: rgba(18, 115, 111, 0.075);
+}
+
+body[data-visual-theme="command"] .contract-workspace-table-wrap thead th,
+body[data-visual-theme="command"] .contract-manual-table thead th {
+  background: #0f232c !important;
+  background-color: #0f232c !important;
+  color: #e6f7f8;
+  opacity: 1;
+}
+
+body[data-visual-theme="trajectory"] .contract-workspace-table-wrap thead th,
+body[data-visual-theme="trajectory"] .contract-manual-table thead th {
+  background: #373c3d !important;
+  background-color: #373c3d !important;
+  color: #f1eee7;
+  opacity: 1;
+}
+
+body[data-visual-theme="command"] .contract-manual-table tr.contract-confirmed-row > td,
+body[data-visual-theme="trajectory"] .contract-manual-table tr.contract-confirmed-row > td {
+  background: rgba(114, 245, 255, 0.08);
+}
+
+body[data-visual-theme="command"] .contract-manual-table tr.contract-confirmed-row:hover > td,
+body[data-visual-theme="trajectory"] .contract-manual-table tr.contract-confirmed-row:hover > td {
+  background: rgba(114, 245, 255, 0.12);
+}
+
+.contract-table-actions .link-btn.danger.solid {
+  border-color: rgba(181, 59, 59, 0.36);
+  background: #b91c1c;
+  color: #fff;
+}
+
+body[data-visual-theme="command"] .contract-table-actions .link-btn.danger.solid,
+body[data-visual-theme="trajectory"] .contract-table-actions .link-btn.danger.solid {
+  border-color: rgba(255, 130, 130, 0.55);
+  background: rgba(173, 29, 29, 0.95);
+  color: #fff5f5;
+}
+
+/* 合同梳理表：保持系统表格风格，支持列宽拖拽和列内自适应排版 */
+.contract-manual-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1180px;
+}
+
+.contract-manual-table th {
+  position: sticky;
+  white-space: nowrap;
+  background: #0f232c !important;
+  background-color: #0f232c !important;
+  color: #e6f7f8;
+  opacity: 1;
+}
+
+.contract-manual-table th,
+.contract-manual-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contract-manual-table th:nth-child(1),
+.contract-manual-table td:nth-child(1) {
+  width: 64px;
+}
+
+#backManualContractTable th:nth-child(2),
+#backManualContractTable td:nth-child(2) {
+  width: 23%;
+}
+
+#frontManualContractTable th:nth-child(2),
+#frontManualContractTable td:nth-child(2) {
+  width: 24%;
+}
+
+#frontManualContractTable th:nth-child(3),
+#frontManualContractTable td:nth-child(3) {
+  width: 23%;
+}
+
+#backManualContractTable th:nth-child(3),
+#backManualContractTable td:nth-child(3) {
+  width: 150px;
+}
+
+#backManualContractTable th:nth-child(5),
+#backManualContractTable td:nth-child(5) {
+  width: 20%;
+}
+
+.contract-manual-table th:nth-child(4),
+.contract-manual-table td:nth-child(4) {
+  width: 150px;
+}
+
+#frontManualContractTable th:nth-child(5),
+#frontManualContractTable td:nth-child(5) {
+  width: 140px;
+}
+
+#frontManualContractTable th:nth-child(6),
+#frontManualContractTable td:nth-child(6) {
+  width: 110px;
+}
+
+#frontManualContractTable th:nth-child(7),
+#frontManualContractTable td:nth-child(7) {
+  width: 184px;
+}
+
+#backManualContractTable th:nth-child(6),
+#backManualContractTable td:nth-child(6) {
+  width: 20%;
+}
+
+.contract-manual-table th:nth-child(7),
+.contract-manual-table td:nth-child(7) {
+  width: 110px;
+}
+
+.contract-manual-table th:nth-child(8),
+.contract-manual-table td:nth-child(8) {
+  width: 184px;
+}
+
+.contract-manual-table td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.contract-manual-table .contract-file-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.contract-manual-table .contract-flow-cell,
+.contract-manual-table .contract-flow-group-cell {
+  min-width: 0;
+  text-align: left;
+}
+
+.contract-manual-table .contract-flow-cell small {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.contract-flow-subtotal {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(181, 139, 43, 0.32);
+}
+
+.contract-flow-subtotal span {
+  color: #7a5a16;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.contract-flow-subtotal strong {
+  color: #b8871e;
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-visual-theme="command"] .contract-flow-subtotal,
+body[data-visual-theme="trajectory"] .contract-flow-subtotal {
+  border-top-color: rgba(255, 204, 92, 0.42);
+}
+
+body[data-visual-theme="command"] .contract-flow-subtotal span,
+body[data-visual-theme="trajectory"] .contract-flow-subtotal span {
+  color: rgba(255, 226, 148, 0.9);
+}
+
+body[data-visual-theme="command"] .contract-flow-subtotal strong,
+body[data-visual-theme="trajectory"] .contract-flow-subtotal strong {
+  color: #ffd166;
+}
+
+.contract-manual-table .contract-inline-select,
+.contract-manual-table .contract-inline-input,
+.contract-manual-table .contract-inline-select.flow {
+  min-width: 0;
+}
+
+.contract-manual-table .contract-tax-checks {
+  min-width: 0;
+}
+
+.contract-manual-table .contract-table-actions {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+.contract-manual-table .contract-group-seq {
+  text-align: center;
+}
+
+/* 合同页标题区：覆盖全局 section-head 首个 div 隐藏规则，保证导入按钮在左、缩放控件在右 */
+#contracts > .contract-workspace-head > .contract-head-actions {
+  display: flex;
+}
+
+#contracts > .contract-workspace-head > .contract-head-right {
+  display: flex;
+}
+
+/* 前向合同流链路演示框图 */
+.contract-workspace-kpi.clickable {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.contract-workspace-kpi.clickable:hover,
+.contract-workspace-kpi.clickable:focus-visible {
+  border-color: rgba(18, 115, 111, 0.42);
+  box-shadow: 0 14px 32px rgba(18, 115, 111, 0.16);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.contract-flow-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.contract-flow-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 25, 30, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.contract-flow-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1380px, calc(100vw - 56px));
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+  border: 1px solid rgba(18, 115, 111, 0.22);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(238, 248, 247, 0.96), transparent 34%),
+    linear-gradient(145deg, #ffffff 0%, #f5fbfb 100%);
+  box-shadow: 0 28px 80px rgba(8, 25, 30, 0.28);
+  color: #132f33;
+}
+
+.contract-flow-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid rgba(18, 115, 111, 0.14);
+}
+
+.contract-flow-modal-head h3 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.contract-flow-modal-head p {
+  margin: 7px 0 0;
+  color: #48666b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.front-flow-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+  padding: 14px 24px 0;
+}
+
+.front-flow-stage-label {
+  color: #6d7f82;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.front-flow-stage-label.right {
+  text-align: center;
+}
+
+.front-flow-canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+  padding: 16px 24px 24px;
+}
+
+.front-flow-rows {
+  display: grid;
+  gap: 12px;
+}
+
+.front-flow-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.front-flow-index {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #0f232c;
+  color: #e6f7f8;
+  font-size: 15px;
+  font-weight: 950;
+  box-shadow: 0 8px 18px rgba(15, 35, 44, 0.18);
+}
+
+.front-flow-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(18, 115, 111, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.front-flow-party,
+.front-flow-tianan-mini,
+.front-flow-summary {
+  min-height: 54px;
+  border-radius: 14px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.front-flow-party {
+  min-width: 118px;
+  padding: 8px 12px;
+  border: 1px solid rgba(18, 115, 111, 0.22);
+  background: #eef8f7;
+}
+
+.front-flow-party.direct-customer {
+  min-width: 166px;
+  background: linear-gradient(180deg, #fff9e8 0%, #fff2c6 100%);
+  border-color: rgba(181, 139, 43, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.front-flow-party span,
+.front-flow-tianan-mini {
+  color: #163b40;
+  font-size: 14px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.front-flow-party strong {
+  margin-top: 3px;
+  color: #b8871e;
+  font-size: 19px;
+  font-weight: 980;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.front-flow-summary {
+  flex: 1 1 220px;
+  min-width: 150px;
+  padding: 8px 12px;
+  background: #f7fbfb;
+  border: 1px dashed rgba(18, 115, 111, 0.24);
+  color: #3b5960;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.front-flow-tianan-mini {
+  min-width: 118px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, #12343a 0%, #0f232c 100%);
+  color: #e6f7f8;
+  box-shadow: 0 10px 22px rgba(15, 35, 44, 0.2);
+}
+
+.front-flow-arrow {
+  position: relative;
+  flex: 0 0 28px;
+  height: 2px;
+  background: rgba(18, 115, 111, 0.38);
+}
+
+.front-flow-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid rgba(18, 115, 111, 0.56);
+  border-right: 2px solid rgba(18, 115, 111, 0.56);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.front-flow-arrow.final {
+  flex-basis: 34px;
+  background: rgba(181, 139, 43, 0.48);
+}
+
+.front-flow-arrow.final::after {
+  border-color: rgba(181, 139, 43, 0.72);
+}
+
+.front-flow-total-card {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  min-height: 260px;
+  padding: 22px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, #0f232c 0%, #123f45 62%, #0d5d59 100%);
+  color: #eaffff;
+  box-shadow: 0 22px 54px rgba(15, 35, 44, 0.24);
+}
+
+.front-flow-total-card span {
+  display: block;
+  font-size: 22px;
+  font-weight: 980;
+}
+
+.front-flow-total-card em {
+  display: block;
+  margin-top: 10px;
+  color: rgba(234, 255, 255, 0.78);
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.front-flow-total-card strong {
+  display: block;
+  margin-top: 16px;
+  color: #ffd166;
+  font-size: 34px;
+  font-weight: 1000;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.front-flow-total-card small {
+  display: block;
+  margin-top: 18px;
+  color: rgba(234, 255, 255, 0.76);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.55;
+}
+
+body[data-visual-theme="command"] .contract-flow-modal-panel,
+body[data-visual-theme="trajectory"] .contract-flow-modal-panel {
+  background: linear-gradient(145deg, #07191d 0%, #0f232c 100%);
+  color: #eaffff;
+}
+
+body[data-visual-theme="command"] .front-flow-path,
+body[data-visual-theme="trajectory"] .front-flow-path {
+  background: rgba(9, 30, 34, 0.88);
+  border-color: rgba(114, 245, 255, 0.18);
+}
+
+body[data-visual-theme="command"] .front-flow-party,
+body[data-visual-theme="trajectory"] .front-flow-party,
+body[data-visual-theme="command"] .front-flow-summary,
+body[data-visual-theme="trajectory"] .front-flow-summary {
+  background: rgba(8, 25, 30, 0.92);
+  border-color: rgba(114, 245, 255, 0.28);
+  color: rgba(234, 255, 255, 0.86);
+}
+
+body[data-visual-theme="command"] .front-flow-party.direct-customer,
+body[data-visual-theme="trajectory"] .front-flow-party.direct-customer {
+  background: rgba(82, 61, 17, 0.92);
+  border-color: rgba(255, 209, 102, 0.34);
+}
+
+body[data-visual-theme="command"] .front-flow-party span,
+body[data-visual-theme="trajectory"] .front-flow-party span {
+  color: #eaffff;
+}
+
+@media (max-width: 1180px) {
+  .front-flow-canvas,
+  .front-flow-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .front-flow-total-card {
+    position: static;
+  }
+
+  .front-flow-path {
+    overflow-x: auto;
+  }
+}
+
+/* 前向合同流完整框图：补充业主入口与设备清单落点 */
+.front-flow-origin,
+.front-flow-target {
+  min-height: 58px;
+  min-width: 138px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.24;
+}
+
+.front-flow-origin {
+  border: 1px solid rgba(52, 86, 103, 0.24);
+  background: linear-gradient(180deg, #edf4f7 0%, #ddebf0 100%);
+  color: #183844;
+}
+
+.front-flow-target {
+  border: 1px solid rgba(18, 115, 111, 0.28);
+  background: linear-gradient(180deg, #eaf8f4 0%, #d9f0e8 100%);
+  color: #0d5d59;
+}
+
+.front-flow-arrow.owner {
+  background: rgba(52, 86, 103, 0.34);
+}
+
+.front-flow-arrow.owner::after {
+  border-color: rgba(52, 86, 103, 0.58);
+}
+
+body[data-visual-theme="command"] .front-flow-origin,
+body[data-visual-theme="trajectory"] .front-flow-origin,
+body[data-visual-theme="command"] .front-flow-target,
+body[data-visual-theme="trajectory"] .front-flow-target {
+  background: rgba(8, 25, 30, 0.92);
+  border-color: rgba(114, 245, 255, 0.3);
+  color: #eaffff;
+}
+
+/* 前向合同流链路：唯一主体树状汇聚框图 */
+.contract-flow-modal-head {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 0.72fr) auto;
+  align-items: center;
+}
+
+.contract-flow-title-copy {
+  min-width: 0;
+}
+
+.front-flow-total-card.compact {
+  position: static;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(150px, 1fr);
+  grid-template-areas:
+    "name amount"
+    "label amount";
+  gap: 4px 16px;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 16px;
+}
+
+.front-flow-total-card.compact span {
+  grid-area: name;
+  font-size: 18px;
+}
+
+.front-flow-total-card.compact em {
+  grid-area: label;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.front-flow-total-card.compact strong {
+  grid-area: amount;
+  margin-top: 0;
+  text-align: right;
+  font-size: 30px;
+}
+
+.front-flow-canvas.tree {
+  display: block;
+  padding: 16px 24px 24px;
+}
+
+.front-flow-tree-wrap {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid rgba(18, 115, 111, 0.14);
+  border-radius: 20px;
+  background:
+    linear-gradient(rgba(18, 115, 111, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 115, 111, 0.035) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.78);
+  background-size: 28px 28px;
+}
+
+.front-flow-tree-svg {
+  display: block;
+  min-width: 1180px;
+  width: 100%;
+  height: auto;
+}
+
+.front-flow-tree-svg text {
+  font-family: inherit;
+  pointer-events: none;
+}
+
+.front-flow-svg-edges path {
+  fill: none;
+  stroke: rgba(18, 115, 111, 0.42);
+  stroke-width: 3;
+  marker-end: url(#frontFlowArrow);
+}
+
+.front-flow-tree-svg marker path {
+  fill: rgba(18, 115, 111, 0.62);
+}
+
+.front-flow-svg-node rect {
+  stroke-width: 1.6;
+  filter: drop-shadow(0 10px 14px rgba(15, 35, 44, 0.12));
+}
+
+.front-flow-svg-node text {
+  font-size: 14px;
+  font-weight: 950;
+  fill: #163b40;
+}
+
+.front-flow-svg-node.owner rect {
+  fill: #ddebf0;
+  stroke: rgba(52, 86, 103, 0.32);
+}
+
+.front-flow-svg-node.main rect {
+  fill: #eef8f7;
+  stroke: rgba(18, 115, 111, 0.28);
+}
+
+.front-flow-svg-node.mid rect {
+  fill: #fff;
+  stroke: rgba(18, 115, 111, 0.2);
+}
+
+.front-flow-svg-node.tianan rect {
+  fill: #0f232c;
+  stroke: rgba(15, 35, 44, 0.42);
+}
+
+.front-flow-svg-node.tianan text {
+  fill: #e6f7f8;
+  font-size: 16px;
+}
+
+.front-flow-svg-node.target rect {
+  fill: #d9f0e8;
+  stroke: rgba(18, 115, 111, 0.34);
+}
+
+.front-flow-svg-node.target text {
+  fill: #0d5d59;
+}
+
+.front-flow-svg-summary rect {
+  fill: #fff7df;
+  stroke: rgba(181, 139, 43, 0.32);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 8px 12px rgba(181, 139, 43, 0.1));
+}
+
+.front-flow-svg-summary text {
+  fill: #6c5220;
+  font-size: 12px;
+  font-weight: 930;
+}
+
+.front-flow-svg-summary text.amount {
+  fill: #b8871e;
+  font-size: 13px;
+  font-weight: 980;
+}
+
+body[data-visual-theme="command"] .front-flow-tree-wrap,
+body[data-visual-theme="trajectory"] .front-flow-tree-wrap {
+  background:
+    linear-gradient(rgba(114, 245, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(114, 245, 255, 0.045) 1px, transparent 1px),
+    rgba(9, 30, 34, 0.84);
+  border-color: rgba(114, 245, 255, 0.2);
+}
+
+body[data-visual-theme="command"] .front-flow-svg-node.mid rect,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.mid rect,
+body[data-visual-theme="command"] .front-flow-svg-node.main rect,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.main rect,
+body[data-visual-theme="command"] .front-flow-svg-node.owner rect,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.owner rect,
+body[data-visual-theme="command"] .front-flow-svg-node.target rect,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.target rect {
+  fill: rgba(8, 25, 30, 0.94);
+  stroke: rgba(114, 245, 255, 0.3);
+}
+
+body[data-visual-theme="command"] .front-flow-svg-node text,
+body[data-visual-theme="trajectory"] .front-flow-svg-node text,
+body[data-visual-theme="command"] .front-flow-svg-node.target text,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.target text {
+  fill: #eaffff;
+}
+
+@media (max-width: 1180px) {
+  .contract-flow-modal-head {
+    grid-template-columns: 1fr;
+  }
+
+  .front-flow-total-card.compact strong {
+    text-align: left;
+  }
+}
+
+/* 前向合同流链路：XMind 风格水平/垂直折线，无交叉布局 */
+.front-flow-tree-svg.xmind .front-flow-svg-edges polyline {
+  fill: none;
+  stroke: rgba(18, 115, 111, 0.48);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  marker-end: url(#frontFlowArrow);
+}
+
+.front-flow-tree-svg.xmind .front-flow-svg-edges polyline.owner-edge {
+  stroke: rgba(52, 86, 103, 0.42);
+}
+
+.front-flow-tree-svg.xmind .front-flow-svg-edges polyline.merge-edge {
+  stroke: rgba(181, 139, 43, 0.54);
+}
+
+.front-flow-tree-svg.xmind .front-flow-svg-edges polyline.final-edge {
+  stroke: rgba(15, 35, 44, 0.62);
+}
+
+.front-flow-svg-line-label rect {
+  fill: rgba(255, 247, 223, 0.98);
+  stroke: rgba(181, 139, 43, 0.34);
+  stroke-width: 1.2;
+  filter: drop-shadow(0 5px 8px rgba(181, 139, 43, 0.09));
+}
+
+.front-flow-svg-line-label text {
+  fill: #6c5220;
+  font-size: 12px;
+  font-weight: 930;
+}
+
+.front-flow-svg-node.direct rect {
+  fill: #fff7df;
+  stroke: rgba(181, 139, 43, 0.36);
+}
+
+.front-flow-svg-node.direct text.node-amount {
+  fill: #b8871e;
+  font-size: 14px;
+  font-weight: 1000;
+}
+
+body[data-visual-theme="command"] .front-flow-tree-svg.xmind .front-flow-svg-edges polyline,
+body[data-visual-theme="trajectory"] .front-flow-tree-svg.xmind .front-flow-svg-edges polyline {
+  stroke: rgba(114, 245, 255, 0.42);
+}
+
+body[data-visual-theme="command"] .front-flow-svg-line-label rect,
+body[data-visual-theme="trajectory"] .front-flow-svg-line-label rect,
+body[data-visual-theme="command"] .front-flow-svg-node.direct rect,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.direct rect {
+  fill: rgba(82, 61, 17, 0.94);
+  stroke: rgba(255, 209, 102, 0.36);
+}
+
+body[data-visual-theme="command"] .front-flow-svg-line-label text,
+body[data-visual-theme="trajectory"] .front-flow-svg-line-label text,
+body[data-visual-theme="command"] .front-flow-svg-node.direct text.node-amount,
+body[data-visual-theme="trajectory"] .front-flow-svg-node.direct text.node-amount {
+  fill: #ffd166;
+}
+
+/* 前向合同流：强化天安智联框和汇聚结构 */
+.front-flow-tree-svg.xmind .front-flow-svg-node.tianan rect {
+  stroke: #ffd166;
+  stroke-width: 2.8;
+  filter: drop-shadow(0 16px 24px rgba(15, 35, 44, 0.26));
+}
+
+.front-flow-tree-svg.xmind .front-flow-svg-node.tianan text {
+  font-size: 18px;
+  font-weight: 1000;
+}
+
+/* 前向合同流弹层：顶部天安汇总卡片居中 */
+.contract-flow-modal-head {
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 0.9fr) minmax(86px, 1fr);
+}
+
+.contract-flow-modal-head .front-flow-total-card.compact {
+  justify-self: center;
+  width: min(520px, 100%);
+}
+
+.contract-flow-modal-head > .ghost-btn {
+  justify-self: end;
+}
+
+/* 前向合同流：按用户截图结构重绘，去掉设备清单框 */
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline {
+  marker-end: none;
+  stroke: #2d43d8;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.final-edge {
+  marker-end: url(#frontFlowArrow);
+  stroke: #111;
+  stroke-width: 3.2;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.right-bracket {
+  marker-end: none;
+  stroke-width: 3.6;
+}
+
+.front-flow-tree-svg.screenshot-structure marker path {
+  fill: #111;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node rect {
+  fill: #fff;
+  stroke: #2d43d8;
+  stroke-width: 3.2;
+  filter: none;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node text {
+  fill: #111;
+  font-size: 22px;
+  font-weight: 760;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner rect {
+  fill: #2d43d8;
+  stroke: #2d43d8;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner text {
+  fill: #fff;
+  font-size: 26px;
+  font-weight: 950;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary rect {
+  fill: #fff;
+  stroke: #2d43d8;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary text {
+  font-size: 20px;
+  font-weight: 760;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct text.node-amount {
+  fill: #b8871e;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan rect {
+  fill: #fff;
+  stroke: #111;
+  stroke-width: 3.2;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan text {
+  fill: #111;
+  font-size: 24px;
+  font-weight: 820;
+}
+
+body[data-visual-theme="command"] .front-flow-tree-svg.screenshot-structure .front-flow-svg-node rect,
+body[data-visual-theme="trajectory"] .front-flow-tree-svg.screenshot-structure .front-flow-svg-node rect,
+body[data-visual-theme="command"] .front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary rect,
+body[data-visual-theme="trajectory"] .front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary rect {
+  fill: rgba(8, 25, 30, 0.94);
+  stroke: rgba(114, 245, 255, 0.45);
+}
+
+body[data-visual-theme="command"] .front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline,
+body[data-visual-theme="trajectory"] .front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline {
+  stroke: rgba(114, 245, 255, 0.62);
+}
+
+/* 前向合同流截图结构：强制清爽高对比配色，不随深色主题降低可读性 */
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.mid rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.main rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary rect {
+  fill: #ffffff !important;
+  stroke: #2d43d8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.mid text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.main text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary text {
+  fill: #142029 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct rect {
+  fill: #fff8e6 !important;
+  stroke: #2d43d8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct text.node-amount {
+  fill: #b8871e !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner rect {
+  fill: #2d43d8 !important;
+  stroke: #2d43d8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner text {
+  fill: #ffffff !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan rect {
+  fill: #ffffff !important;
+  stroke: #111111 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan text {
+  fill: #111111 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline {
+  stroke: #2d43d8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.final-edge {
+  stroke: #111111 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure marker path {
+  fill: #111111 !important;
+}
+
+/* 前向合同流框图：回归系统卡片风格，降低线条饱和度，普通字缩小，金额放大 */
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline {
+  stroke: rgba(18, 115, 111, 0.46) !important;
+  stroke-width: 2.4 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.owner-edge {
+  stroke: rgba(52, 86, 103, 0.36) !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.summary-edge,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.bracket-feed,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.right-bracket {
+  stroke: rgba(181, 139, 43, 0.5) !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.final-edge {
+  stroke: rgba(15, 35, 44, 0.74) !important;
+  stroke-width: 2.8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure marker path {
+  fill: rgba(15, 35, 44, 0.82) !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node rect {
+  filter: drop-shadow(0 10px 18px rgba(15, 35, 44, 0.1));
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner rect {
+  fill: #0f232c !important;
+  stroke: #0f232c !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner text {
+  fill: #e6f7f8 !important;
+  font-size: 22px !important;
+  font-weight: 950 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.main rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.mid rect {
+  fill: #f8fcfc !important;
+  stroke: rgba(18, 115, 111, 0.34) !important;
+  stroke-width: 1.8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary rect {
+  fill: #fff8ec !important;
+  stroke: rgba(181, 139, 43, 0.38) !important;
+  stroke-width: 1.8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct rect {
+  fill: #fffdf6 !important;
+  stroke: rgba(181, 139, 43, 0.42) !important;
+  stroke-width: 2 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan rect {
+  fill: #0f232c !important;
+  stroke: #ffd166 !important;
+  stroke-width: 2.8 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.main text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.mid text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary text {
+  fill: #18383d !important;
+  font-size: 17px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.01em;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary text {
+  fill: #6c5220 !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct text.node-amount {
+  fill: #b8871e !important;
+  font-size: 20px !important;
+  font-weight: 1000 !important;
+  letter-spacing: -0.02em;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan text {
+  fill: #e6f7f8 !important;
+  font-size: 22px !important;
+  font-weight: 1000 !important;
+}
+
+/* 前向合同流框图：统一为顶部天安汇总卡片风格，并修复左侧文字重叠/线条可读性 */
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.main rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.mid rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct rect,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan rect {
+  fill: #0f232c !important;
+  stroke: rgba(255, 209, 102, 0.82) !important;
+  stroke-width: 2.2px !important;
+  filter: drop-shadow(0 12px 22px rgba(15, 35, 44, 0.22));
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.main text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.mid text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary text,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.tianan text {
+  fill: #e6f7f8 !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.owner text {
+  font-size: 21px !important;
+  font-weight: 980 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.summary text {
+  fill: #ffd166 !important;
+  font-size: 16px !important;
+  font-weight: 950 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-node.direct text.node-amount {
+  fill: #ffd166 !important;
+  font-size: 21px !important;
+  font-weight: 1000 !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline {
+  stroke: rgba(114, 245, 255, 0.58) !important;
+  stroke-width: 3px !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.summary-edge,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.bracket-feed,
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.right-bracket {
+  stroke: rgba(255, 209, 102, 0.82) !important;
+  stroke-width: 3.4px !important;
+}
+
+.front-flow-tree-svg.screenshot-structure .front-flow-svg-edges polyline.final-edge {
+  stroke: rgba(255, 209, 102, 0.9) !important;
+  stroke-width: 3.4px !important;
+}
+
+.front-flow-tree-svg.screenshot-structure marker path {
+  fill: rgba(255, 209, 102, 0.95) !important;
 }

@@ -1,6 +1,8 @@
 const http = require("http");
 const fs = require("fs/promises");
 const path = require("path");
+const { execFile } = require("child_process");
+const crypto = require("crypto");
 const { fileURLToPath } = require("url");
 
 const PORT = Number(process.env.PORT || 4173);
@@ -8,9 +10,20 @@ const ROOT_DIR = __dirname;
 const STORAGE_DIR = path.join(ROOT_DIR, "storage");
 const STATE_FILE = path.join(STORAGE_DIR, "roadside-status-state.json");
 const MAP_ASSET_DIR = "/Users/tt2000/Documents/天安智联/AI/项目管理工具包/无锡车路云MAP、RSI及信号机配置文件Excel";
+const CONTRACT_FILE_ROOTS = [
+  "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版",
+  "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同",
+  path.join(ROOT_DIR, "..", "document_assets", "import_batches", "contract_manual_imports"),
+];
 const MAP_ASSET_CACHE_TTL_MS = 30 * 1000;
 const DOCUMENT_ASSET_REPORT = path.join(ROOT_DIR, "..", "document_assets", "import_batches", "latest-document-scan.json");
 const DOCUMENT_ASSET_SAMPLE_REPORT = path.join(ROOT_DIR, "..", "document_assets", "import_batches", "sample-document-assets.json");
+const CONTRACT_REBUILD_SCRIPT = path.join(ROOT_DIR, "..", "tools", "rebuild_contract_relationships.py");
+const CONTRACT_MANUAL_IMPORT_DIR = path.join(ROOT_DIR, "..", "document_assets", "import_batches", "contract_manual_imports");
+const CONTRACT_EXCLUSIONS_FILE = path.join(STORAGE_DIR, "contract-exclusions.json");
+const CONTRACT_RELATIONSHIPS_FILE = path.join(ROOT_DIR, "data", "contract-relationships.json");
+const DOCUMENT_ASSETS_FILE = path.join(ROOT_DIR, "data", "document-assets.json");
+const PYTHON_BIN = process.env.PYTHON_BIN || "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3";
 let mapAssetCache = null;
 
 const MIME_TYPES = {
@@ -20,6 +33,9 @@ const MIME_TYPES = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".pdf": "application/pdf",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
@@ -44,6 +60,163 @@ async function readRequestJson(request) {
   for await (const chunk of request) chunks.push(chunk);
   const text = Buffer.concat(chunks).toString("utf8");
   return text ? JSON.parse(text) : null;
+}
+
+
+async function readJsonFile(filePath, fallback) {
+  try {
+    const body = await fs.readFile(filePath, "utf8");
+    return JSON.parse(body);
+  } catch (error) {
+    if (error.code === "ENOENT") return fallback;
+    throw error;
+  }
+}
+
+async function writeJsonFile(filePath, payload) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+function normalizeExcludeKey(value) {
+  return String(value || "").trim();
+}
+
+async function readContractExclusions() {
+  const payload = await readJsonFile(CONTRACT_EXCLUSIONS_FILE, null);
+  if (!payload) {
+    return { schemaVersion: 1, updatedAt: "", exclusions: [] };
+  }
+  return {
+    schemaVersion: 1,
+    updatedAt: payload.updatedAt || "",
+    exclusions: Array.isArray(payload.exclusions) ? payload.exclusions : [],
+  };
+}
+
+async function restoreContractExclusionForImport(record) {
+  const current = await readContractExclusions();
+  const before = current.exclusions.length;
+  const restored = [];
+  current.exclusions = current.exclusions.filter((item) => {
+    const matched = contractExcludedBy([item], record);
+    if (matched) restored.push(item);
+    return !matched;
+  });
+  if (current.exclusions.length === before) return { restoredCount: 0, restored };
+  current.updatedAt = new Date().toISOString();
+  await writeJsonFile(CONTRACT_EXCLUSIONS_FILE, current);
+  return { restoredCount: before - current.exclusions.length, restored };
+}
+
+function contractExcludedBy(exclusions, record) {
+  const ids = new Set(exclusions.map((item) => normalizeExcludeKey(item.contractId)).filter(Boolean));
+  const paths = new Set(exclusions.map((item) => normalizeExcludeKey(item.sourcePath)).filter(Boolean));
+  const hashes = new Set(exclusions.map((item) => normalizeExcludeKey(item.sha256)).filter(Boolean));
+  return Boolean(
+    ids.has(normalizeExcludeKey(record.id || record.contractId)) ||
+      paths.has(normalizeExcludeKey(record.sourcePath)) ||
+      hashes.has(normalizeExcludeKey(record.sha256)),
+  );
+}
+
+function relationshipReferencesExcludedContract(item, exclusions) {
+  return contractExcludedBy(exclusions, { contractId: item.contractId }) ||
+    contractExcludedBy(exclusions, { contractId: item.frontContractId }) ||
+    contractExcludedBy(exclusions, { contractId: item.backContractId });
+}
+
+function itemReferencesExcludedContract(item, exclusions) {
+  return contractExcludedBy(exclusions, { contractId: item.contractId }) ||
+    contractExcludedBy(exclusions, { contractId: item.frontContractId }) ||
+    contractExcludedBy(exclusions, { contractId: item.backContractId });
+}
+
+async function applyContractExclusionsToGeneratedData(exclusions) {
+  const relationships = await readJsonFile(CONTRACT_RELATIONSHIPS_FILE, null);
+  if (relationships) {
+    const contracts = relationships.contracts || [];
+    relationships.contracts = contracts.filter((item) => !contractExcludedBy(exclusions, item));
+    relationships.frontContractItems = (relationships.frontContractItems || []).filter((item) => !itemReferencesExcludedContract(item, exclusions));
+    relationships.backContractItems = (relationships.backContractItems || []).filter((item) => !itemReferencesExcludedContract(item, exclusions));
+    relationships.contractToMacroFlowMatches = (relationships.contractToMacroFlowMatches || []).filter((item) => !relationshipReferencesExcludedContract(item, exclusions));
+    relationships.frontBackRelationshipCandidates = (relationships.frontBackRelationshipCandidates || []).filter((item) => !relationshipReferencesExcludedContract(item, exclusions));
+    relationships.deviceItemMatchCandidates = (relationships.deviceItemMatchCandidates || []).filter((item) => !relationshipReferencesExcludedContract(item, exclusions));
+    relationships.summary = {
+      ...(relationships.summary || {}),
+      contractDocumentCount: relationships.contracts.length,
+      frontContractCount: relationships.contracts.filter((item) => item.direction === "front_sales").length,
+      backContractCount: relationships.contracts.filter((item) => item.direction === "back_procurement").length,
+      frontContractItemCount: relationships.frontContractItems.length,
+      backContractItemCount: relationships.backContractItems.length,
+      frontBackCandidateCount: relationships.frontBackRelationshipCandidates.length,
+      deviceItemMatchCandidateCount: relationships.deviceItemMatchCandidates.length,
+      excludedContractCount: exclusions.length,
+    };
+    await writeJsonFile(CONTRACT_RELATIONSHIPS_FILE, relationships);
+  }
+
+  for (const documentAssetFile of [DOCUMENT_ASSETS_FILE, DOCUMENT_ASSET_REPORT]) {
+    const documentAssets = await readJsonFile(documentAssetFile, null);
+    if (!documentAssets) continue;
+    const before = documentAssets.records || [];
+    documentAssets.records = before.filter((item) => !contractExcludedBy(exclusions, item));
+    documentAssets.summary = {
+      ...(documentAssets.summary || {}),
+      fileCount: documentAssets.records.length,
+      excludedFileCount: exclusions.length,
+    };
+    await writeJsonFile(documentAssetFile, documentAssets);
+  }
+}
+
+async function sha256ForContractSourcePath(sourcePath) {
+  if (!sourcePath) return "";
+  for (const filePath of [DOCUMENT_ASSETS_FILE, DOCUMENT_ASSET_REPORT]) {
+    const payload = await readJsonFile(filePath, null);
+    const record = (payload?.records || []).find((item) => item.sourcePath === sourcePath);
+    if (record?.sha256) return record.sha256;
+  }
+  return "";
+}
+
+async function handleContractSystemRemove(request, response) {
+  if (request.method !== "POST") {
+    response.writeHead(405, { Allow: "POST" });
+    response.end();
+    return;
+  }
+  try {
+    const payload = await readRequestJson(request);
+    const contractId = normalizeExcludeKey(payload?.contractId);
+    const sourcePath = normalizeExcludeKey(payload?.sourcePath);
+    const fileName = normalizeExcludeKey(payload?.fileName);
+    if (!contractId && !sourcePath) return sendJson(response, 400, { error: "missing_contract_identifier" });
+    const exclusions = await readContractExclusions();
+    const sha256 = normalizeExcludeKey(payload?.sha256) || await sha256ForContractSourcePath(sourcePath);
+    const exists = exclusions.exclusions.some((item) =>
+      (contractId && item.contractId === contractId) ||
+      (sourcePath && item.sourcePath === sourcePath) ||
+      (sha256 && item.sha256 === sha256),
+    );
+    if (!exists) {
+      exclusions.exclusions.push({
+        contractId,
+        sourcePath,
+        fileName,
+        sha256,
+        reason: normalizeExcludeKey(payload?.reason) || "manual_remove_from_system",
+        removedAt: new Date().toISOString(),
+      });
+    }
+    exclusions.updatedAt = new Date().toISOString();
+    await writeJsonFile(CONTRACT_EXCLUSIONS_FILE, exclusions);
+    await applyContractExclusionsToGeneratedData(exclusions.exclusions);
+    sendJson(response, 200, { ok: true, excludedContractCount: exclusions.exclusions.length, sourceFileTouched: false });
+  } catch (error) {
+    console.error(error);
+    sendJson(response, 500, { error: "contract_system_remove_failed", message: error.message });
+  }
 }
 
 function validateStatePayload(payload) {
@@ -84,6 +257,31 @@ function mapAssetFilePath(relativePath) {
   const relative = path.relative(MAP_ASSET_DIR, filePath);
   if (relative.startsWith("..") || path.isAbsolute(relative)) return "";
   return filePath;
+}
+
+function contractFilePath(rawPath) {
+  const filePath = path.normalize(rawPath || "");
+  if (!path.isAbsolute(filePath)) return "";
+  const allowed = CONTRACT_FILE_ROOTS.some((root) => {
+    const relative = path.relative(root, filePath);
+    return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+  });
+  return allowed ? filePath : "";
+}
+
+function contentDispositionInline(filePath) {
+  const fileName = path.basename(filePath);
+  const asciiFallback = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_") || "contract-file";
+  return `inline; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
+function openWithDefaultApp(filePath) {
+  return new Promise((resolve, reject) => {
+    execFile("open", [filePath], (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
 }
 
 function buildZip(entries) {
@@ -465,6 +663,54 @@ async function handleMapAssetFile(request, response, requestUrl) {
   }
 }
 
+async function handleContractFile(request, response, requestUrl) {
+  if (request.method !== "GET") {
+    response.writeHead(405, { Allow: "GET" });
+    response.end();
+    return;
+  }
+  const rawPath = requestUrl.searchParams.get("path") || "";
+  const filePath = contractFilePath(rawPath);
+  if (!filePath) return sendJson(response, 403, { error: "forbidden" });
+  try {
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile()) return sendJson(response, 404, { error: "not_found" });
+    const body = await fs.readFile(filePath);
+    response.writeHead(200, {
+      "Content-Type": MIME_TYPES[path.extname(filePath)] || "application/octet-stream",
+      "Content-Disposition": contentDispositionInline(filePath),
+      "Cache-Control": "private, max-age=60",
+    });
+    response.end(body);
+  } catch (error) {
+    if (error.code === "ENOENT") return sendJson(response, 404, { error: "not_found" });
+    console.error(error);
+    return sendJson(response, 500, { error: "contract_file_read_failed" });
+  }
+}
+
+async function handleContractFileOpen(request, response, requestUrl) {
+  if (request.method !== "POST" && request.method !== "GET") {
+    response.writeHead(405, { Allow: "POST, GET" });
+    response.end();
+    return;
+  }
+  const payload = request.method === "POST" ? await readRequestJson(request).catch(() => null) : null;
+  const rawPath = payload?.path || requestUrl.searchParams.get("path") || "";
+  const filePath = contractFilePath(rawPath);
+  if (!filePath) return sendJson(response, 403, { error: "forbidden" });
+  try {
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile()) return sendJson(response, 404, { error: "not_found" });
+    await openWithDefaultApp(filePath);
+    return sendJson(response, 200, { ok: true, fileName: path.basename(filePath) });
+  } catch (error) {
+    if (error.code === "ENOENT") return sendJson(response, 404, { error: "not_found" });
+    console.error(error);
+    return sendJson(response, 500, { error: "contract_file_open_failed", message: error.message });
+  }
+}
+
 async function handleMapAssetExport(request, response, requestUrl) {
   if (request.method !== "GET") {
     response.writeHead(405, { Allow: "GET" });
@@ -540,6 +786,130 @@ async function handleRoadsideState(request, response) {
   response.end();
 }
 
+
+function sanitizeRelativeUploadPath(value) {
+  const parts = String(value || "")
+    .split(/[\\/]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => part.replace(/[<>:"|?*\x00-\x1f]/g, "_").slice(0, 120));
+  return parts.join(path.sep) || "contract-file";
+}
+
+function contractImportDirection(value) {
+  return value === "back" || value === "back_procurement" ? "back_procurement" : "front_sales";
+}
+
+function inferContractImportDirection(requestedDirection, relativePath) {
+  const text = String(relativePath || "");
+  if (/后向采购合同|后向|采购合同|采购/.test(text) && !/前向销售合同|前向销售|销售合同/.test(text)) return "back_procurement";
+  if (/前向销售合同|前向销售|前向|销售合同/.test(text) && !/后向采购合同|后向/.test(text)) return "front_sales";
+  return requestedDirection;
+}
+
+function contractImportSubdir(direction) {
+  return direction === "back_procurement" ? "后向采购合同" : "前向销售合同";
+}
+
+async function handleContractImportUpload(request, response, requestUrl) {
+  if (request.method !== "POST") {
+    response.writeHead(405, { Allow: "POST" });
+    response.end();
+    return;
+  }
+  try {
+    const requestedDirection = contractImportDirection(requestUrl.searchParams.get("direction"));
+    const fileName = sanitizeRelativeUploadPath(requestUrl.searchParams.get("fileName") || "contract-file");
+    const direction = inferContractImportDirection(requestedDirection, fileName);
+    const targetPath = path.normalize(path.join(CONTRACT_MANUAL_IMPORT_DIR, contractImportSubdir(direction), fileName));
+    const root = path.normalize(path.join(CONTRACT_MANUAL_IMPORT_DIR, contractImportSubdir(direction)));
+    if (!targetPath.startsWith(root)) return sendJson(response, 400, { error: "invalid_file_path" });
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = Buffer.concat(chunks);
+    if (!body.length) return sendJson(response, 400, { error: "empty_file" });
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, body);
+    const sha256 = crypto.createHash("sha256").update(body).digest("hex");
+    const restoreResult = await restoreContractExclusionForImport({ sourcePath: targetPath, fileName, sha256 });
+    sendJson(response, 200, {
+      ok: true,
+      direction,
+      fileName,
+      path: targetPath,
+      size: body.length,
+      sha256,
+      restoredExcludedContractCount: restoreResult.restoredCount,
+      restoredExcludedContracts: restoreResult.restored.map((item) => ({
+        contractId: item.contractId || "",
+        fileName: item.fileName || "",
+        removedAt: item.removedAt || "",
+      })),
+    });
+  } catch (error) {
+    console.error(error);
+    sendJson(response, 500, { error: "contract_import_upload_failed", message: error.message });
+  }
+}
+
+function runExecFile(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(command, args, { ...options, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+}
+
+async function handleContractRelationshipsRebuild(request, response) {
+  if (request.method !== "POST") {
+    response.writeHead(405, { Allow: "POST" });
+    response.end();
+    return;
+  }
+  try {
+    const candidateSources = [
+      "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版",
+      "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同",
+      path.join(CONTRACT_MANUAL_IMPORT_DIR, "前向销售合同"),
+      path.join(CONTRACT_MANUAL_IMPORT_DIR, "后向采购合同"),
+    ];
+    const rebuildArgs = [CONTRACT_REBUILD_SCRIPT, "--exclude-file", CONTRACT_EXCLUSIONS_FILE];
+    for (const source of candidateSources) {
+      try {
+        await fs.access(source);
+        rebuildArgs.push("--source", source);
+      } catch (error) {
+        // Ignore import folders that do not exist yet.
+      }
+    }
+    const result = await runExecFile(PYTHON_BIN, rebuildArgs, { cwd: path.join(ROOT_DIR, ".."), env: { ...process.env, PYTHON_BIN } });
+    let payload = { ok: true, stdout: result.stdout.trim(), stderr: result.stderr.trim() };
+    try {
+      payload = { ok: true, ...JSON.parse(result.stdout) };
+      const exclusions = await readContractExclusions();
+      await applyContractExclusionsToGeneratedData(exclusions.exclusions);
+      payload.excludedContractCount = exclusions.exclusions.length;
+      if (result.stderr.trim()) payload.stderr = result.stderr.trim();
+    } catch (error) {
+      // Keep raw stdout when the script prints non-JSON diagnostics.
+    }
+    sendJson(response, 200, payload);
+  } catch (error) {
+    console.error(error);
+    sendJson(response, 500, {
+      error: "contract_relationships_rebuild_failed",
+      message: error.message,
+      stdout: String(error.stdout || "").slice(0, 4000),
+      stderr: String(error.stderr || "").slice(0, 4000),
+    });
+  }
+}
 
 async function readDocumentAssetReport() {
   const candidates = [DOCUMENT_ASSET_REPORT, DOCUMENT_ASSET_SAMPLE_REPORT];
@@ -620,6 +990,26 @@ const server = http.createServer(async (request, response) => {
   }
   if (requestUrl.pathname === "/api/map-assets/export") {
     await handleMapAssetExport(request, response, requestUrl);
+    return;
+  }
+  if (requestUrl.pathname === "/api/contract-file") {
+    await handleContractFile(request, response, requestUrl);
+    return;
+  }
+  if (requestUrl.pathname === "/api/contract-file/open") {
+    await handleContractFileOpen(request, response, requestUrl);
+    return;
+  }
+  if (requestUrl.pathname === "/api/contract-import") {
+    await handleContractImportUpload(request, response, requestUrl);
+    return;
+  }
+  if (requestUrl.pathname === "/api/contract-system-remove") {
+    await handleContractSystemRemove(request, response);
+    return;
+  }
+  if (requestUrl.pathname === "/api/contract-relationships/rebuild") {
+    await handleContractRelationshipsRebuild(request, response);
     return;
   }
   if (requestUrl.pathname === "/api/document-assets") {

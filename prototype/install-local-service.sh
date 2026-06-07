@@ -43,6 +43,8 @@ cat > "$PLIST" <<PLIST
   <dict>
     <key>PORT</key>
     <string>4173</string>
+    <key>PYTHON_BIN</key>
+    <string>/Library/Frameworks/Python.framework/Versions/3.11/bin/python3</string>
   </dict>
 </dict>
 </plist>

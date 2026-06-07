@@ -13,7 +13,7 @@
 - 设备安装位置以 `NodeID + 安装位置 + 物料` 关联点位。
 - 未匹配设备进入治理池，不直接污染点位设备统计。
 - 一路一档/一点一档资料按路口目录自动归集，验收单、接线表和照片需解析成结构化数据。
-- 合同管理按宏观合同流骨架、Word 合同边界、前后向多对多候选关系和设备级资金流单元建模，支持业主审计与阶段付款释放。
+- 合同管理按前向销售合同、后向采购合同、前后向合同明细逐条匹配候选和设备级资金流单元建模，支持业主设备级审计与阶段付款释放。合同级关系只作筛选上下文，不作为付款依据。
 
 ## 2. ER 总览
 
@@ -892,15 +892,15 @@ erDiagram
 - `review_status`
 - `document_file_id`
 
-### 3.24 合同与宏观流匹配表 `contract_macro_flow_match`
+### 3.24 合同与前向销售合同匹配表 `contract_front_sales_flow_match`
 
-用途：记录 Word 合同文本与宏观合同流骨架之间的候选匹配证据。该匹配只用于筛选和复核，不直接进入资金计算。
+用途：记录 Word 合同文本与前向销售合同资金入口之间的候选匹配证据。该匹配只用于筛选后向采购合同和设备级明细候选，不直接进入资金计算。
 
 关键字段：
 
 - `id`
 - `contract_document_id`
-- `macro_flow_id`
+- `front_sales_flow_id`
 - `match_score`
 - `confidence`
 - `evidence_summary`
@@ -911,9 +911,9 @@ erDiagram
 - `created_at`
 - `updated_at`
 
-### 3.25 前后向合同候选关系表 `front_back_contract_candidate`
+### 3.25 合同级前后向候选上下文表 `front_back_contract_candidate`
 
-用途：管理“前向合同 → 天安 → 后向合同”的多对多候选关系。候选关系必须人工确认后，才能生成设备级资金流单元；未确认时 `financial_use_allowed=false`。
+用途：管理“前向合同 → 天安 → 后向合同”的多对多候选上下文，用于缩小设备级明细匹配范围。该表本身不得作为付款、毛利或回款计算依据；真正可进入资金计算的是 `contract_device_item_match_candidate` 中已确认的前后向明细项关系。
 
 关键字段：
 
@@ -927,20 +927,63 @@ erDiagram
 - `score`
 - `confidence`
 - `decision_status`
-- `financial_use_allowed`
+- `financial_use_allowed`，固定为 `false`，除非后续产品明确改造成只读上下文字段
 - `decision_comment`
 - `decided_by`
 - `decided_at`
 
-### 3.26 设备级资金流单元表 `contract_device_cashflow_unit`
+### 3.26 设备级明细匹配候选表 `contract_device_item_match_candidate`
+
+用途：管理前向销售合同明细项与天安后向采购合同明细项之间的逐条匹配候选。该表是合同管理确认工作的核心对象。
+
+关键字段：
+
+- `id`
+- `front_contract_item_id`
+- `back_contract_item_id`
+- `front_contract_id`
+- `back_contract_id`
+- `front_sales_flow_id`
+- `front_item_name`
+- `front_spec_model`
+- `front_quantity`
+- `front_unit_price_tax_included`
+- `front_amount_tax_included`
+- `front_tax_rate`
+- `back_item_name`
+- `back_spec_model`
+- `back_quantity`
+- `back_unit_price_tax_included`
+- `back_amount_tax_included`
+- `back_tax_rate`
+- `token_overlap`
+- `amount_ratio`
+- `tax_rate_match`
+- `score`
+- `confidence`
+- `decision_status`
+- `financial_use_allowed`
+- `decision_comment`
+- `decided_by`
+- `decided_at`
+- `created_at`
+- `updated_at`
+
+约束：
+
+- `financial_use_allowed=false` 是默认值。
+- 只有 `decision_status='confirmed'` 且名称、规格、数量、金额、税率、合同附件证据经过人工确认后，才允许生成设备级资金流单元。
+- 税率是一级校验字段。前向税率和后向税率不一致时不得自动确认。
+
+### 3.27 设备级资金流单元表 `contract_device_cashflow_unit`
 
 用途：表示某一设备/软件/服务项在前向合同和后向合同之间的最小资金流核算单元。上游回款、下游付款、毛利、税率和审计均在该单元上计算。
 
 关键字段：
 
 - `id`
-- `candidate_id`
-- `macro_flow_id`
+- `device_item_match_candidate_id`
+- `front_sales_flow_id`
 - `front_contract_id`
 - `back_contract_id`
 - `front_item_pool_row_id`
@@ -964,7 +1007,7 @@ erDiagram
 - `overpayment_risk_status`
 - `block_reason`
 
-### 3.27 设备级履约事件表 `contract_item_fulfillment_event`
+### 3.28 设备级履约事件表 `contract_item_fulfillment_event`
 
 用途：记录同一合同中不同设备或明细的节点发生时间。比如同一后向采购合同内，一部分设备先到货入库，另一部分后安装验收，必须分别记录。
 
@@ -984,7 +1027,7 @@ erDiagram
 - `evidence_object_id`
 - `remark`
 
-### 3.28 业主设备级审计结果表 `contract_owner_audit_result`
+### 3.29 业主设备级审计结果表 `contract_owner_audit_result`
 
 用途：记录业主对设备级数量和金额的审计确认结果。上游可回款金额和下游可付款金额均受该结果约束。
 
@@ -1004,7 +1047,7 @@ erDiagram
 - `evidence_document_id`
 - `remark`
 
-### 3.29 设备级阶段付款表 `contract_device_payment_stage`
+### 3.30 设备级阶段付款表 `contract_device_payment_stage`
 
 用途：按预付款、到货、安装、验收、审计、质保等阶段管理设备级前向可回款和后向可付款释放。前向阶段和后向阶段不要求机械一一对应。
 

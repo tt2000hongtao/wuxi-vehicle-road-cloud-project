@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-06-07T03:35:25.054Z",
+  "exclusions": [
+    {
+      "contractId": "contract_doc_ce4a1dc463c5d261",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/前向销售合同/4.工业安装/【250709法审稿】无锡市车路云一体化应用试点(包5设备网联化及交管赋能》ICT(DJ)项目采购合同补充协议.docx",
+      "fileName": "【250709法审稿】无锡市车路云一体化应用试点(包5设备网联化及交管赋能》ICT(DJ)项目采购合同补充协议.docx",
+      "sha256": "8131807afb016d144860ac598727cc0e0b1026fd4248a5601195c6035bf30411",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-06T14:57:21.749Z"
+    },
+    {
+      "contractId": "contract_doc_4f3e702e93a5d1dc",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/AI/项目管理工具包/无锡车路云项目管理/document_assets/import_batches/contract_manual_imports/前向销售合同/盖章版合同 WORD 版/前向销售合同/7.四维图新/~$署版）NI1057-【采购合同】“车路云一体化”应用试点（包7安全运营中心及视频平台）项目采购合同+20251209+-+V2.docx",
+      "fileName": "~$署版）NI1057-【采购合同】“车路云一体化”应用试点（包7安全运营中心及视频平台）项目采购合同+20251209+-+V2.docx",
+      "sha256": "b64396d72dea9f927823fadacccd03385dfaba3934cdc7da24fd06dbae13ce96",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-06T14:57:41.490Z"
+    },
+    {
+      "contractId": "contract_doc_341c8f1ace38ada9",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/后向采购合同/合创/天安智联-合创智行（前项安全类销售合同）8（过审版）.docx",
+      "fileName": "天安智联-合创智行（前项安全类销售合同）8（过审版）.docx",
+      "sha256": "36ee586fc14795e0e290c4d672d140793e2da62d7842bacbd6da8bf038bcf2db",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-06T15:43:02.076Z"
+    },
+    {
+      "contractId": "contract_doc_9e96d06632112121",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/前向销售合同/4.工业安装/无锡车路云一体化应用试点项目（包1）软件开发与系统集成服务合同-最终确定.docx",
+      "fileName": "无锡车路云一体化应用试点项目（包1）软件开发与系统集成服务合同-最终确定.docx",
+      "sha256": "b4222fe33c50f71a7483daf10507b4b5fa35aad750d29b834f3a1290ad06c6a1",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-06T15:46:07.052Z"
+    },
+    {
+      "contractId": "contract_doc_3e0e9a6320266251",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/前向销售合同/1.车联网集团/无锡市车路云一体化应用试点项目一阶段合同协议书(客户提供) - 2025-3-14终版.docx",
+      "fileName": "无锡市车路云一体化应用试点项目一阶段合同协议书(客户提供) - 2025-3-14终版.docx",
+      "sha256": "56b915c260878cf614a4e38aea76f01e1daa0d8b2448b429512b169867873ccd",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-06T15:47:14.204Z"
+    },
+    {
+      "contractId": "contract_doc_b9d4296476d8335f",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/前向销售合同/1.车联网集团/无锡市车路云一体化应用试点项目一阶段联合体补充协议(1).docx",
+      "fileName": "无锡市车路云一体化应用试点项目一阶段联合体补充协议(1).docx",
+      "sha256": "dedc4fe9eb66a6283986a9e0f10e2e2ee7fa8b24e2d8e545bcbf6cd15680b6d3",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T03:29:11.606Z"
+    }
+  ]
+}
