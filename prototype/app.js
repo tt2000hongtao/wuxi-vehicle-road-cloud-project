@@ -2803,12 +2803,21 @@ function manualAmountForContractGroup(group) {
   return Number.isFinite(savedAmount) ? savedAmount : candidateAmount;
 }
 
+function confirmedAmountForContractGroup(group) {
+  const confirmation = getContractManualConfirmation(group.contractId) || {};
+  if (confirmation.status !== 'confirmed') return 0;
+  const hasSavedAmount = confirmation.amount !== undefined && confirmation.amount !== null && String(confirmation.amount).trim() !== '';
+  if (!hasSavedAmount) return 0;
+  const savedAmount = Number(confirmation.amount);
+  return Number.isFinite(savedAmount) ? savedAmount : 0;
+}
+
 function subtotalAmountForContractFlowGroup(flowGroup) {
-  return (flowGroup.contracts || []).reduce((sum, group) => sum + manualAmountForContractGroup(group), 0);
+  return (flowGroup.contracts || []).reduce((sum, group) => sum + confirmedAmountForContractGroup(group), 0);
 }
 
 function totalAmountForContractGroups(groups) {
-  return (groups || []).reduce((sum, group) => sum + manualAmountForContractGroup(group), 0);
+  return (groups || []).reduce((sum, group) => sum + confirmedAmountForContractGroup(group), 0);
 }
 
 function confirmedManualContractGroups(groups) {
@@ -2828,7 +2837,7 @@ function confirmedFrontAmountByMacroFlow(groups) {
     const confirmation = getContractManualConfirmation(group.contractId) || {};
     const flowId = confirmation.macroFlowId || '';
     if (!flowId) return;
-    result.set(flowId, (result.get(flowId) || 0) + manualAmountForContractGroup(group));
+    result.set(flowId, (result.get(flowId) || 0) + confirmedAmountForContractGroup(group));
   });
   return result;
 }
@@ -2859,6 +2868,43 @@ function groupItemsByContract(items) {
   return [...grouped.values()];
 }
 
+function normalizedContractPartyName(value) {
+  const text = String(value || '').trim();
+  if (!text || text === '-' || text.length > 36) return '';
+  if (/^V?\d+(?:\.\d+)*$/i.test(text) || /^终改\d*$/i.test(text)) return '';
+  if (/合同|协议|项目|采购|补充|一体化|应用试点/.test(text) && !/(公司|集团|研究所|天安|移动|华通|万集|浪潮|尚行|车城|四维|大华|海康|希迪|大为|交科所|金中天|隆顺|网盈|合创|工业安装|中电鸿信)/.test(text)) return '';
+  return text;
+}
+
+function contractSupplierName(contract, itemGroup) {
+  const confirmation = getContractManualConfirmation(contract?.id || itemGroup?.contractId) || {};
+  const manualSupplierName = String(confirmation.supplierName || '').trim();
+  if (manualSupplierName) return manualSupplierName;
+  const partyBFullName = String(contract?.partyBFullName || '').trim();
+  if (partyBFullName) return partyBFullName;
+  const parties = Array.isArray(contract?.parties) ? contract.parties : [];
+  const sourcePath = String(contract?.sourcePath || itemGroup?.sourcePath || '');
+  const fileName = String(contract?.fileName || itemGroup?.contractName || '');
+  const knownParties = ['中电鸿信', '交科所', '华通', '金中天', '隆顺', '工业安装', '合创', '车城', '尚行', '浪潮', '四维图新', '中通服网盈', '万集', '大华', '海康智联', '希迪', '大为'];
+  const pathParts = sourcePath.split(/[\/]/).filter(Boolean);
+  const backContractIndex = pathParts.findIndex((part) => part === '后向采购合同');
+  const explicitScopeParts = [fileName];
+  if (backContractIndex >= 0) explicitScopeParts.push(...pathParts.slice(backContractIndex + 1));
+  else explicitScopeParts.push(...pathParts.slice(-3));
+  for (const part of explicitScopeParts) {
+    const hit = knownParties.find((name) => part.includes(name));
+    if (hit) return hit;
+  }
+  const preferred = parties
+    .map(normalizedContractPartyName)
+    .filter(Boolean)
+    .filter((name) => !['天安', '天安智联', '中国移动', '移动', '车联网', '车联网集团', '无锡车联网集团', '无锡市车联网产业集团'].includes(name));
+  if (preferred.length === 1) return preferred[0];
+  const counterparty = normalizedContractPartyName(contract?.counterparty || itemGroup?.counterparty);
+  if (counterparty) return counterparty;
+  return '-';
+}
+
 function groupContractsWithItems(direction, items) {
   const itemGroups = new Map(groupItemsByContract(items).map((group) => [group.contractId, group]));
   return (state.contractRelationships.contracts || [])
@@ -2869,6 +2915,10 @@ function groupContractsWithItems(direction, items) {
         contractId: contract.id,
         contractName: contract.fileName || itemGroup?.contractName || '-',
         counterparty: contract.counterparty || itemGroup?.counterparty || '-',
+        supplierName: contractSupplierName(contract, itemGroup),
+        partyAFullName: contract.partyAFullName || '',
+        partyBFullName: contract.partyBFullName || '',
+        parties: contract.parties || [],
         sourcePath: contract.sourcePath || itemGroup?.sourcePath || '',
         direction: contract.direction,
         documentAmounts: contract.amounts || [],
@@ -3061,6 +3111,59 @@ function closeFrontSalesFlowDiagram() {
   $('#frontSalesFlowDiagramModal')?.remove();
 }
 
+function itemFieldValue(item, keys, fallback = '-') {
+  for (const key of keys) {
+    const value = item?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+  }
+  return fallback;
+}
+
+function openBackContractLinePreview(contractId) {
+  const items = (state.contractRelationships.backContractItems || []).filter((item) => item.contractId === contractId);
+  const contract = (state.contractRelationships.contracts || []).find((item) => item.id === contractId) || items[0] || {};
+  const existing = $('#backContractLinePreviewModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'backContractLinePreviewModal';
+  modal.className = 'contract-flow-modal open';
+  modal.innerHTML = `
+    <div class="contract-flow-modal-backdrop" data-contract-line-preview-close="1"></div>
+    <section class="contract-flow-modal-panel contract-line-preview-panel" role="dialog" aria-modal="true" aria-label="后向采购合同清单预览">
+      <header class="contract-flow-modal-head">
+        <div class="contract-flow-title-copy">
+          <span class="eyebrow">Back procurement line preview</span>
+          <h3>后向采购合同清单预览</h3>
+          <p>${escapeHtml(contract.fileName || contract.contractName || '未命名合同')}；当前仅展示前 ${Math.min(items.length, 80)} / ${items.length} 行候选清单，正式关联仍需人工确认。</p>
+        </div>
+        <button type="button" class="ghost-btn" data-contract-line-preview-close="1">关闭</button>
+      </header>
+      <div class="table-wrap contract-line-preview-table-wrap">
+        <table class="contract-manual-table contract-line-preview-table">
+          <thead><tr><th>序号</th><th>分项 / 设备服务</th><th>规格型号</th><th>数量</th><th>含税金额（元）</th><th>税率</th><th>来源</th></tr></thead>
+          <tbody>
+            ${items.length ? items.slice(0, 80).map((item, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td><strong>${escapeHtml(itemDisplayName(item))}</strong><br /><small>${escapeHtml(itemFieldValue(item, ['detailName', 'itemNo'], ''))}</small></td>
+                <td>${escapeHtml(itemFieldValue(item, ['specModel', 'model', 'brand'], '-'))}</td>
+                <td>${escapeHtml(itemFieldValue(item, ['quantity'], '待确认'))} ${escapeHtml(item.unit || '')}</td>
+                <td class="money-cell">${escapeHtml(formatAccountingYuan(item.amountTaxIncluded || 0))}</td>
+                <td>${escapeHtml(allowedTaxRateDisplay([item.taxRate]))}</td>
+                <td>表 ${escapeHtml(item.tableIndex ?? '-')} / 行 ${escapeHtml(item.rowNumber ?? '-')}</td>
+              </tr>`).join('') : '<tr><td colspan="7">该合同尚未解析出清单行，后续需要人工补清单。</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeBackContractLinePreview() {
+  $('#backContractLinePreviewModal')?.remove();
+}
+
 function contractMacroFlowOptions(selectedId = '') {
   const flows = state.contractRelationships.macroFlows || [];
   const options = ['<option value="">请选择合同流链路</option>'];
@@ -3196,7 +3299,24 @@ function contractFlowSortIndex(flowId) {
   return index >= 0 ? index : Number.MAX_SAFE_INTEGER - 1;
 }
 
-function buildManualContractFlowGroups(groups) {
+function supplierSortName(group) {
+  return String(group?.supplierName || group?.partyBFullName || group?.counterparty || '').trim();
+}
+
+function sortManualContractsInFlow(a, b, direction, isConfirmedFlow) {
+  if (direction === 'back' && isConfirmedFlow) {
+    const supplierDiff = supplierSortName(a).localeCompare(supplierSortName(b), 'zh-CN');
+    if (supplierDiff !== 0) return supplierDiff;
+    const aIsZero = Math.abs(Number(confirmedAmountForContractGroup(a)) || 0) < 0.005;
+    const bIsZero = Math.abs(Number(confirmedAmountForContractGroup(b)) || 0) < 0.005;
+    if (aIsZero !== bIsZero) return aIsZero ? -1 : 1;
+    return 0;
+  }
+  if (direction === 'back') return 0;
+  return String(a.contractName || '').localeCompare(String(b.contractName || ''), 'zh-CN');
+}
+
+function buildManualContractFlowGroups(groups, direction = 'front') {
   const buckets = new Map();
   (groups || []).forEach((group) => {
     const confirmation = getContractManualConfirmation(group.contractId) || {};
@@ -3210,6 +3330,7 @@ function buildManualContractFlowGroups(groups) {
         selectedFlowId,
         isConfirmedFlow,
         contracts: [],
+        firstOrder: buckets.size,
       });
     }
     buckets.get(key).contracts.push(group);
@@ -3217,7 +3338,7 @@ function buildManualContractFlowGroups(groups) {
   return [...buckets.values()]
     .map((bucket) => ({
       ...bucket,
-      contracts: bucket.contracts.sort((a, b) => String(a.contractName).localeCompare(String(b.contractName), 'zh-CN')),
+      contracts: bucket.contracts.sort((a, b) => sortManualContractsInFlow(a, b, direction, bucket.isConfirmedFlow)),
     }))
     .sort((a, b) => {
       if (a.isConfirmedFlow !== b.isConfirmedFlow) return a.isConfirmedFlow ? -1 : 1;
@@ -3226,6 +3347,7 @@ function buildManualContractFlowGroups(groups) {
         if (indexDiff !== 0) return indexDiff;
         return contractFlowLabel(a.flowId).localeCompare(contractFlowLabel(b.flowId), 'zh-CN');
       }
+      if (direction === 'back') return (a.firstOrder || 0) - (b.firstOrder || 0);
       return String(a.contracts[0]?.contractName || '').localeCompare(String(b.contracts[0]?.contractName || ''), 'zh-CN');
     });
 }
@@ -3239,7 +3361,7 @@ function renderManualContractRows(target, groups, direction) {
     renderContractManualColumnHandles(node.closest("table"));
     return;
   }
-  const flowGroups = buildManualContractFlowGroups(groups).slice(0, 120);
+  const flowGroups = buildManualContractFlowGroups(groups, direction).slice(0, 120);
   node.innerHTML = flowGroups
     .map((flowGroup, flowIndex) => {
       const visibleContracts = flowGroup.contracts;
@@ -3248,7 +3370,7 @@ function renderManualContractRows(target, groups, direction) {
       const selectedFlowId = flowGroup.selectedFlowId || flowGroup.flowId || '';
       const subtotalAmount = subtotalAmountForContractFlowGroup(flowGroup);
       const subtotalLabel = visibleContracts.length > 1 ? '链路小计' : '本行金额';
-      const groupSelect = `<select class="contract-inline-select flow" data-contract-flow-group-field="macroFlowId" data-contract-ids="${escapeHtml(groupContractIds.join('|'))}">${contractMacroFlowOptions(selectedFlowId)}</select><div class="contract-flow-subtotal"><span>${subtotalLabel}</span><strong>${escapeHtml(formatAccountingYuan(subtotalAmount))}</strong></div><small>${escapeHtml(contractMacroFlowHelper(selectedFlowId))}</small>`;
+      const groupSelect = `<select class="contract-inline-select flow" data-contract-flow-group-field="macroFlowId" data-contract-ids="${escapeHtml(groupContractIds.join('|'))}">${contractMacroFlowOptions(selectedFlowId)}</select><div class="contract-flow-subtotal"><span>${subtotalLabel}</span><strong>${escapeHtml(formatAccountingYuan(subtotalAmount))}</strong></div>`;
       return visibleContracts
         .map((group, rowIndex) => {
           const contractId = group.contractId;
@@ -3273,14 +3395,15 @@ function renderManualContractRows(target, groups, direction) {
                 <td>${actions}</td>
               </tr>`;
           }
+          const backFlowCell = rowIndex === 0 ? `<td rowspan="${rowSpan}" class="contract-flow-cell contract-flow-group-cell">${groupSelect}</td>` : '';
           return `
             <tr class="${rowClass}" data-manual-contract-id="${escapeHtml(contractId)}">
               ${seqCell}
+              ${backFlowCell}
               <td>${contractFileButton(group.contractName, group.sourcePath)}</td>
-              <td>${escapeHtml(group.counterparty || '-')}</td>
+              <td><input class="contract-inline-input supplier" data-contract-manual-field="supplierName" data-contract-id="${escapeHtml(contractId)}" value="${escapeHtml(confirmation.supplierName || group.supplierName || '')}" placeholder="填写乙方全称" /></td>
               <td class="money-cell">${amountInput}</td>
-              ${flowCell}
-              <td><span class="status-pill warn">待挂接前向合同</span><br /><small>后续在清单关联工作台做多对多确认</small></td>
+              <td>${contractTaxRateChecks(contractId, taxRates)}</td>
               <td>${status}</td>
               <td>${actions}</td>
             </tr>`;
@@ -3309,9 +3432,11 @@ function readContractManualRow(contractId) {
   const row = document.querySelector(`[data-manual-contract-id="${CSS.escape(contractId)}"]`);
   if (!row) return {};
   const amount = parseContractAmountInput(row.querySelector('[data-contract-manual-field="amount"]')?.value || '');
+  const supplierInput = row.querySelector('[data-contract-manual-field="supplierName"]');
   return {
     macroFlowId: renderedContractFlowIdForContract(contractId),
     amount,
+    supplierName: supplierInput ? supplierInput.value.trim() : undefined,
     taxRates: amount === 0 ? [] : Array.from(row.querySelectorAll('[data-contract-manual-field="taxRates"]:checked')).map((item) => item.value),
   };
 }
@@ -3435,21 +3560,43 @@ function renderAuditPaymentRows(candidates) {
     : '<tr><td colspan="7">尚无已人工确认的设备级清单关联。未确认关系不得进入审计、收款、付款台账。</td></tr>';
 }
 
+function confirmedContractAmountsByDirection() {
+  const cr = state.contractRelationships;
+  const frontGroups = groupContractsWithItems('front_sales', cr.frontContractItems || []);
+  const backGroups = groupContractsWithItems('back_procurement', cr.backContractItems || []);
+  const front = totalAmountForConfirmedContractGroups(frontGroups);
+  const back = totalAmountForConfirmedContractGroups(backGroups);
+  return { front, back, frontGroups, backGroups };
+}
+
 function renderProfitDashboard(candidates) {
   const confirmed = (candidates || []).filter((candidate) => contractCandidateDecision(candidate.id).status === 'confirmed');
-  const front = confirmed.reduce((sum, c) => sum + (Number(c.frontAmountTaxIncluded) || 0), 0);
-  const back = confirmed.reduce((sum, c) => sum + (Number(c.backAmountTaxIncluded) || 0), 0);
+  const { front, back, frontGroups, backGroups } = confirmedContractAmountsByDirection();
   renderContractKpis('#profitKpiRows', [
-    ['已确认关联', confirmed.length, '只统计人工确认清单行', 'done'],
-    ['前向确认金额', formatAccountingYuan(front), '元，候选不计入', ''],
-    ['后向确认金额', formatAccountingYuan(back), '元，候选不计入', ''],
-    ['利润留存', formatAccountingYuan(front - back), '未扣除审计扣减/阶段付款', front - back >= 0 ? 'done' : 'risk'],
+    ['已确认关联', confirmed.length, '只统计人工确认清单行关系', 'done'],
+    ['前向确认金额', formatAccountingYuan(front), '只取前向合同表已人工确认金额', ''],
+    ['后向确认金额', formatAccountingYuan(back), '只取后向合同表已人工确认金额', ''],
+    ['利润留存', formatAccountingYuan(front - back), '只由合同表人工确认金额计算', front - back >= 0 ? 'done' : 'risk'],
   ]);
   const byFlow = $('#profitByFlowRows');
   if (byFlow) {
-    byFlow.innerHTML = confirmed.length
-      ? confirmed.slice(0, 12).map((c) => `<div class="profit-row"><span>${escapeHtml(c.frontItemName || '-')}</span><strong>${escapeHtml(formatAccountingYuan((Number(c.frontAmountTaxIncluded)||0)-(Number(c.backAmountTaxIncluded)||0)))}</strong></div>`).join('')
-      : '<p class="contract-empty-note">暂无正式汇总。请先在清单关联工作台人工确认。</p>';
+    const frontByFlow = confirmedFrontAmountByMacroFlow(frontGroups);
+    const backByFlow = new Map();
+    confirmedManualContractGroups(backGroups).forEach((group) => {
+      const confirmation = getContractManualConfirmation(group.contractId) || {};
+      const flowId = confirmation.macroFlowId || '';
+      if (!flowId) return;
+      backByFlow.set(flowId, (backByFlow.get(flowId) || 0) + confirmedAmountForContractGroup(group));
+    });
+    const rows = (state.contractRelationships.macroFlows || [])
+      .map((flow) => {
+        const retained = (frontByFlow.get(flow.id) || 0) - (backByFlow.get(flow.id) || 0);
+        return { flow, retained };
+      })
+      .filter((item) => Math.abs(item.retained) > 0.005);
+    byFlow.innerHTML = rows.length
+      ? rows.map(({ flow, retained }) => `<div class="profit-row"><span>${escapeHtml(flow.packageName || flow.displayText || flow.id)}</span><strong>${escapeHtml(formatAccountingYuan(retained))}</strong></div>`).join('')
+      : '<p class="contract-empty-note">暂无正式汇总。请先在前向/后向合同表中人工确认合同流链路和金额。</p>';
   }
   const risks = $('#profitRiskRows');
   if (risks) {
@@ -3499,22 +3646,11 @@ function exportContractPendingRelations() {
 }
 
 function exportContractProfitSummary() {
-  const rows = [['清单项', '前向合同', '后向合同', '前向金额', '后向金额', '利润留存', '税率', '确认状态']];
-  (state.contractRelationships.deviceItemMatchCandidates || []).forEach((candidate) => {
-    if (contractCandidateDecision(candidate.id).status !== 'confirmed') return;
-    const frontAmount = Number(candidate.frontAmountTaxIncluded) || 0;
-    const backAmount = Number(candidate.backAmountTaxIncluded) || 0;
-    rows.push([
-      candidate.frontItemName || candidate.backItemName || '',
-      candidate.frontContractName || '',
-      candidate.backContractName || '',
-      formatAccountingYuan(frontAmount),
-      formatAccountingYuan(backAmount),
-      formatAccountingYuan(frontAmount - backAmount),
-      allowedTaxRateDisplay([candidate.frontTaxRate, candidate.backTaxRate]),
-      '已人工确认',
-    ]);
-  });
+  const { front, back } = confirmedContractAmountsByDirection();
+  const rows = [
+    ['统计口径', '前向确认金额', '后向确认金额', '利润留存', '说明'],
+    ['合同表人工确认金额', formatAccountingYuan(front), formatAccountingYuan(back), formatAccountingYuan(front - back), '不使用合同文件抽取金额、不使用候选清单金额'],
+  ];
   downloadTextFile(`合同利润留存汇总-${new Date().toISOString().slice(0, 10)}.csv`, rows.map((row) => row.map(csvCell).join(',')).join('\n'));
 }
 
@@ -3532,7 +3668,7 @@ function renderContractManualWorkspaces() {
   const frontContractGroups = groupContractsWithItems('front_sales', frontItems);
   const backContractGroups = groupContractsWithItems('back_procurement', backItems);
   const frontContractAmount = totalAmountForConfirmedContractGroups(frontContractGroups);
-  const backContractAmount = totalAmountForContractGroups(backContractGroups);
+  const backContractAmount = totalAmountForConfirmedContractGroups(backContractGroups);
 
   const contractSummaryKpis = [
     ['前向销售合同数', frontContractGroups.length, '', 'done', 'front-sales-flow-diagram'],
@@ -3541,10 +3677,9 @@ function renderContractManualWorkspaces() {
     ['后向采购合同金额', formatAccountingYuan(backContractAmount), '', ''],
   ];
 
-  renderContractKpis('#frontContractKpis', contractSummaryKpis);
+  renderContractKpis('#contractSummaryKpis', contractSummaryKpis);
   renderManualContractRows('#frontManualContractRows', frontContractGroups, 'front');
 
-  renderContractKpis('#backContractKpis', contractSummaryKpis);
   renderManualContractRows('#backManualContractRows', backContractGroups, 'back');
 
   renderLineItems('#frontLineItemRows', frontItems, '暂无前向清单行候选。');
@@ -4654,6 +4789,16 @@ function bindEvents() {
       closeFrontSalesFlowDiagram();
       return;
     }
+    const linePreviewClose = event.target.closest("[data-contract-line-preview-close]");
+    if (linePreviewClose) {
+      closeBackContractLinePreview();
+      return;
+    }
+    const linePreview = event.target.closest("[data-contract-line-preview]");
+    if (linePreview) {
+      openBackContractLinePreview(linePreview.dataset.contractLinePreview || '');
+      return;
+    }
     const contractKpiAction = event.target.closest("[data-contract-kpi-action]");
     if (contractKpiAction) {
       if (contractKpiAction.dataset.contractKpiAction === "front-sales-flow-diagram") openFrontSalesFlowDiagram();
@@ -4940,7 +5085,10 @@ function bindEvents() {
       if (contractKpiAction.dataset.contractKpiAction === "front-sales-flow-diagram") openFrontSalesFlowDiagram();
       return;
     }
-    if (event.key === "Escape") closeFrontSalesFlowDiagram();
+    if (event.key === "Escape") {
+      closeFrontSalesFlowDiagram();
+      closeBackContractLinePreview();
+    }
   });
   document.body.addEventListener("blur", (event) => {
     const manualField = event.target.closest?.("[data-contract-manual-field]");

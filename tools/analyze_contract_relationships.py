@@ -22,6 +22,8 @@ import argparse
 import json
 import math
 import re
+import subprocess
+import tempfile
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -328,6 +330,31 @@ def extract_docx_text(path: Path) -> str:
     return "\n".join(parts)
 
 
+def extract_doc_text(path: Path) -> str:
+    """Extract legacy .doc text by converting through macOS textutil.
+
+    python-docx cannot read binary .doc. In this local prototype environment,
+    textutil can convert most .doc contracts to docx, after which the normal
+    docx extractor is used. If conversion fails, return empty text and let
+    the UI fall back to manual confirmation instead of inventing fields.
+    """
+    with tempfile.TemporaryDirectory(prefix="wuxi-contract-doc-") as tmp:
+        out = Path(tmp) / f"{path.stem}.docx"
+        try:
+            subprocess.run(
+                ["/usr/bin/textutil", "-convert", "docx", "-output", str(out), str(path)],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=20,
+            )
+            if out.exists() and out.stat().st_size > 0:
+                return extract_docx_text(out)
+        except Exception:
+            return ""
+    return ""
+
+
 def extract_amounts(text: str, limit: int = 20) -> list[float]:
     amounts = []
     for m in re.finditer(r"(?<![A-Za-z0-9])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?\s*(亿元|亿|万元|万|元)?", text):
@@ -355,6 +382,26 @@ def extract_tax_rates(text: str) -> list[str]:
         if s and s not in out:
             out.append(s)
     return out
+
+
+def extract_contract_parties_from_text(text: str) -> dict[str, str]:
+    result = {"partyAFullName": "", "partyBFullName": ""}
+    if not text:
+        return result
+    patterns = [
+        ("partyAFullName", r"甲方(?:（[^）]*）|\([^)]*\))?\s*[:：]\s*([^\n|；;，,]{4,80})"),
+        ("partyBFullName", r"乙方(?:（[^）]*）|\([^)]*\))?\s*[:：]\s*([^\n|；;，,]{4,80})"),
+    ]
+    for key, pattern in patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        value = clean(match.group(1))
+        value = re.sub(r"\s+", "", value)
+        value = re.sub(r"[。；;，,].*$", "", value).strip()
+        if any(token in value for token in ["有限公司", "股份", "公司", "研究所", "集团"]):
+            result[key] = value
+    return result
 
 
 def normalize_tax_rate(value: str) -> str:
@@ -695,6 +742,8 @@ class ContractDoc:
     direction: str
     counterparty: str
     parties: list[str]
+    partyAFullName: str
+    partyBFullName: str
     amounts: list[float]
     taxRates: list[str]
     keywords: list[str]
@@ -784,7 +833,7 @@ def extract_contract_docs(document_assets: Path, primary_keywords: list[str] | N
             continue
         path = Path(record["sourcePath"])
         ext = path.suffix.lower()
-        if ext not in {".docx", ".doc"}:
+        if ext not in {".docx", ".doc", ".pdf"}:
             continue
         text = ""
         if ext == ".docx":
@@ -793,8 +842,11 @@ def extract_contract_docs(document_assets: Path, primary_keywords: list[str] | N
             except Exception:
                 text = ""
         elif ext == ".doc":
-            # Older .doc can be parsed by the existing script; keep filename-level
-            # evidence here if conversion is unavailable.
+            text = extract_doc_text(path)
+        elif ext == ".pdf":
+            # PDF contracts are accepted into the contract register, but this
+            # prototype does not parse them. They remain file-level records for
+            # manual confirmation and OS/default-app reading.
             text = ""
         fields = record.get("extractedFields", {})
         filename = record.get("fileName", path.name)
@@ -811,6 +863,7 @@ def extract_contract_docs(document_assets: Path, primary_keywords: list[str] | N
             if amount not in amount_candidates:
                 amount_candidates.append(amount)
         taxes = extract_tax_rates(text)
+        party_full_names = extract_contract_parties_from_text(text)
         kws = keyword_hits(base_text, primary_keywords)
         lines = []
         for line in text.splitlines():
@@ -827,6 +880,8 @@ def extract_contract_docs(document_assets: Path, primary_keywords: list[str] | N
                 direction=fields.get("contractDirection") or record.get("documentSubcategory", ""),
                 counterparty=normalize_party(fields.get("counterparty", "")),
                 parties=parties,
+                partyAFullName=party_full_names.get("partyAFullName", ""),
+                partyBFullName=party_full_names.get("partyBFullName", ""),
                 amounts=amount_candidates[:20],
                 taxRates=taxes,
                 keywords=kws,

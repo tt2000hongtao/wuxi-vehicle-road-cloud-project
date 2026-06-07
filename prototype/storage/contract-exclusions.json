@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-06-07T03:35:25.054Z",
+  "updatedAt": "2026-06-07T14:05:02.343Z",
   "exclusions": [
     {
       "contractId": "contract_doc_ce4a1dc463c5d261",
@@ -17,14 +17,6 @@
       "sha256": "b64396d72dea9f927823fadacccd03385dfaba3934cdc7da24fd06dbae13ce96",
       "reason": "manual_remove_from_system",
       "removedAt": "2026-06-06T14:57:41.490Z"
-    },
-    {
-      "contractId": "contract_doc_341c8f1ace38ada9",
-      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/后向采购合同/合创/天安智联-合创智行（前项安全类销售合同）8（过审版）.docx",
-      "fileName": "天安智联-合创智行（前项安全类销售合同）8（过审版）.docx",
-      "sha256": "36ee586fc14795e0e290c4d672d140793e2da62d7842bacbd6da8bf038bcf2db",
-      "reason": "manual_remove_from_system",
-      "removedAt": "2026-06-06T15:43:02.076Z"
     },
     {
       "contractId": "contract_doc_9e96d06632112121",
@@ -49,6 +41,350 @@
       "sha256": "dedc4fe9eb66a6283986a9e0f10e2e2ee7fa8b24e2d8e545bcbf6cd15680b6d3",
       "reason": "manual_remove_from_system",
       "removedAt": "2026-06-07T03:29:11.606Z"
+    },
+    {
+      "contractId": "contract_doc_bd99469f274af845",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/（鸿信代记）车路云一体化项目弱电智能化施工合同-无锡电信季敏.docx",
+      "fileName": "（鸿信代记）车路云一体化项目弱电智能化施工合同-无锡电信季敏.docx",
+      "sha256": "e44744c6ee9d8824e250ba3549fd6106209b7d4d57d62a0464d15325a52e4f5d",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T07:10:57.746Z"
+    },
+    {
+      "contractId": "contract_doc_8c498ac68a6d4e84",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/相关发票/浪潮服务器100%_江苏天安智联科技股份有限公司_20250516144953(1).pdf",
+      "fileName": "浪潮服务器100%_江苏天安智联科技股份有限公司_20250516144953(1).pdf",
+      "sha256": "84c93d961761575de2dff6e32bc2664aca60f34cb193c3132de915e3fa879771",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:23:37.873Z"
+    },
+    {
+      "contractId": "contract_doc_320a318bd7eff4a4",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/送货单/收货单.pdf",
+      "fileName": "收货单.pdf",
+      "sha256": "8bd571ba95638f4105d1d726eb596e3a11587638e45e7b23ebe5a0a7ec1e7e2b",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:23:45.304Z"
+    },
+    {
+      "contractId": "contract_doc_d49d680474e3c3af",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/相关发票/信通院 10%.pdf",
+      "fileName": "信通院 10%.pdf",
+      "sha256": "c2222e70e40465d3d6c77cf10b5fc26931fc267d2efbbf3517a9499a11985903",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:23:52.539Z"
+    },
+    {
+      "contractId": "contract_doc_b2c9fd75f9f67ba7",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/9.3 天安-海特补充更新.pdf",
+      "fileName": "9.3 天安-海特补充更新.pdf",
+      "sha256": "3c10ecf3c92866cba2ab055ab4ee5137a209c24b7fc4a9c4d1842c920a7d3309",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:24:04.411Z"
+    },
+    {
+      "contractId": "contract_doc_7b666b9516fc4f39",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/9.2 天安-航天海特合同附件 2025-6-18.pdf",
+      "fileName": "9.2 天安-航天海特合同附件 2025-6-18.pdf",
+      "sha256": "acabfbc4a5ab04ff1e9780ff7907c7a2a4f9b5fd0d9de68510ab1e40c8af1343",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:24:14.047Z"
+    },
+    {
+      "contractId": "contract_doc_a17a160a0758c4f6",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/9.1 天安-航天海特5137.019776万元 2025-6-18.pdf",
+      "fileName": "9.1 天安-航天海特5137.019776万元 2025-6-18.pdf",
+      "sha256": "f9e3087c93e9f93d93b793e65aa893083a8bcbdbcd9f8d9b1de8ab7300186603",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:24:23.106Z"
+    },
+    {
+      "contractId": "contract_doc_d92a16f960136e8f",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/8. 天安-金中天信号机升级 2025-6-4.pdf",
+      "fileName": "8. 天安-金中天信号机升级 2025-6-4.pdf",
+      "sha256": "1bf8001890c614ea214e6c4faaf1367f377923bf475d18162396d80537e2784e",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:24:30.683Z"
+    },
+    {
+      "contractId": "contract_doc_311de2563745c562",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/7. 天安-交科所联网联控平台等软件2025-5-30.pdf",
+      "fileName": "7. 天安-交科所联网联控平台等软件2025-5-30.pdf",
+      "sha256": "760be6b1e62c35cbd99ab8ae4ebaeae8b0e2bd87d38357e460098d4df74ff5f6",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:24:38.778Z"
+    },
+    {
+      "contractId": "contract_doc_767f76041d35813f",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/6. 天安-华通 城市级智能网联汽车安全监测评台开发 2025-6-3.pdf",
+      "fileName": "6. 天安-华通 城市级智能网联汽车安全监测评台开发 2025-6-3.pdf",
+      "sha256": "5e6870fd058cc4604e1f42fa8946f6a033b8b432128f74b6dc041f8b8d8caf6e",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:24:46.266Z"
+    },
+    {
+      "contractId": "contract_doc_809db02db9f5fbfd",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/5. 天安-华通开发费 2453.4125万 2025-6-3.pdf",
+      "fileName": "5. 天安-华通开发费 2453.4125万 2025-6-3.pdf",
+      "sha256": "6b35d462ec64e8f848cc9d9f74af80cd862b71f174eec4f731b9440738106050",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:09.128Z"
+    },
+    {
+      "contractId": "contract_doc_3a839db8fd6271b6",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/4. 天安-华通数字交互控制终端等1251.54万.pdf",
+      "fileName": "4. 天安-华通数字交互控制终端等1251.54万.pdf",
+      "sha256": "bb7b271d8b2b05bc993ec6e0c6a3298677f3f74ef104f89bf16eed99fee3d1df",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:15.653Z"
+    },
+    {
+      "contractId": "contract_doc_0bce8f6168980e07",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/3.2 万集补充协议2025-7-23.pdf",
+      "fileName": "3.2 万集补充协议2025-7-23.pdf",
+      "sha256": "c08e5b6dc121e9101b968e9bc161e89a6c9b8020f420077c7e721a17ab39cc2f",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:21.922Z"
+    },
+    {
+      "contractId": "contract_doc_326192cf96809ac1",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/2. 车路云租赁6-15-  9-14  1600元每月.pdf",
+      "fileName": "2. 车路云租赁6-15-  9-14  1600元每月.pdf",
+      "sha256": "8dc1d2e19c265e97dfd273e90fbdd759abf0483d628c16fbc80f1ce71cf67bc0",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:35.458Z"
+    },
+    {
+      "contractId": "contract_doc_b9bae97151d3cf2a",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/19. 车城智联7-21（作废税率有变）.pdf",
+      "fileName": "19. 车城智联7-21（作废税率有变）.pdf",
+      "sha256": "73ffdceef8c18743b014d877ac0fd8aa2e8a77e1fbb46959ae0fac8258ec4667",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:41.966Z"
+    },
+    {
+      "contractId": "contract_doc_b6e2ce658eb6d8d3",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/19. 车城智联（7-21日）.pdf",
+      "fileName": "19. 车城智联（7-21日）.pdf",
+      "sha256": "5a532160c2bbd4663d1b2fde4d42b606fc1e821279f389681c1d71c464c1d19a",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:48.345Z"
+    },
+    {
+      "contractId": "contract_doc_195b43ccd4775ec6",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/18. 工业安装设备.pdf",
+      "fileName": "18. 工业安装设备.pdf",
+      "sha256": "465547972946a934e3fc2dddbe2b25f7ee75e9efdc72ac011c9be83246dd075e",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:25:54.937Z"
+    },
+    {
+      "contractId": "contract_doc_66ea227ab63ee058",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/17. 天安-工业安装服务费.pdf",
+      "fileName": "17. 天安-工业安装服务费.pdf",
+      "sha256": "c384e453b3baff57b427fb87a07bedd2414c4b22008a9bac057321f7b82edf59",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:26:01.950Z"
+    },
+    {
+      "contractId": "contract_doc_e1a373853469d266",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/16. 天安-浙江海康R2施工费.pdf",
+      "fileName": "16. 天安-浙江海康R2施工费.pdf",
+      "sha256": "dae9e503b46b19aed0508a21fe14f0f42678a7db09435e89deb06079fc26f822",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:26:16.463Z"
+    },
+    {
+      "contractId": "contract_doc_b7fd9238aaa13ae2",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/15. 天安-隆顺 华通信号机采购和安装服务.pdf",
+      "fileName": "15. 天安-隆顺 华通信号机采购和安装服务.pdf",
+      "sha256": "a4f8aa07b5cabfb428ae30eb8e1c753ba67a66d2a7d5027aef4891dac170f64b",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:26:29.763Z"
+    },
+    {
+      "contractId": "contract_doc_1f06b110ae8061a1",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/14. 天安-博世城市级道路路面感知和预警.pdf",
+      "fileName": "14. 天安-博世城市级道路路面感知和预警.pdf",
+      "sha256": "b04df31aa7cc2756ce05708e8ede1f3b2443147ff4cab8b19985fdfd028dd9f2",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:26:42.621Z"
+    },
+    {
+      "contractId": "contract_doc_ba8cf2f33d2dfae5",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/12. 天安-海康智联986.875万元 2025-6-25.pdf",
+      "fileName": "12. 天安-海康智联986.875万元 2025-6-25.pdf",
+      "sha256": "183c313608b7cbdc297b2218e3d3b1b1342cc38baf40da3c6fdd2c7e97831a6b",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:26:54.604Z"
+    },
+    {
+      "contractId": "contract_doc_f8cf031972b8958d",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/11. 天安-信通院 2025-6-24  229.23万.pdf",
+      "fileName": "11. 天安-信通院 2025-6-24  229.23万.pdf",
+      "sha256": "3f244ef66661b4a052f4ceb0be99f5ea3ca1ee9a77e229185820434a717dc905",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:26:59.648Z"
+    },
+    {
+      "contractId": "contract_doc_34129ef8ac9b89fb",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/10.1 补四维补充协议2025-8-1.pdf",
+      "fileName": "10.1 补四维补充协议2025-8-1.pdf",
+      "sha256": "5c5370f96a33e8ebca6121d091ddfa41cc56da0350a357dfc0009284c7e145ff",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:27:05.451Z"
+    },
+    {
+      "contractId": "contract_doc_1eec27fabd7d9e15",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/1. 天安-志合浪潮服务器25万服务器2025-5-15.pdf",
+      "fileName": "1. 天安-志合浪潮服务器25万服务器2025-5-15.pdf",
+      "sha256": "8e9d8834ebdd9c61a165077d4e694c5d70fa6897cd1be005981cfd49636f519c",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:27:16.386Z"
+    },
+    {
+      "contractId": "contract_doc_28d6ec01595f3e1b",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/13. 天安-中电鸿电信 2865.29万  2025-6-27.pdf",
+      "fileName": "13. 天安-中电鸿电信 2865.29万  2025-6-27.pdf",
+      "sha256": "9ab5ac27049da2ffc3e972a39e3f3692c0e0675d3be054985c0fbe542f179e4b",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:27:30.665Z"
+    },
+    {
+      "contractId": "contract_doc_43d69f9fffd210e0",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/后向采购合同盖章版/10. 天安采四维图新 1205.9万 2025-6-19.pdf",
+      "fileName": "10. 天安采四维图新 1205.9万 2025-6-19.pdf",
+      "sha256": "b666785dd910da67ae70d3cf8ac00f27ec3433a1db26335825cca6a317569e67",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:27:43.973Z"
+    },
+    {
+      "contractId": "contract_doc_f19f453b0ab7ca0a",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/后向采购合同/万集/车路云一体化项目后向采购合同补充协议-天安-万集-朱.docx",
+      "fileName": "车路云一体化项目后向采购合同补充协议-天安-万集-朱.docx",
+      "sha256": "1cf8737edfdfa7484792f0e956d53834a9fa42a49661911c99ea176688c0517a",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:30:33.078Z"
+    },
+    {
+      "contractId": "contract_doc_e9b0ff1e64c25e88",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/13. 工业安装 信号机、R3等安装 9% 2025-8-13.pdf",
+      "fileName": "13. 工业安装 信号机、R3等安装 9% 2025-8-13.pdf",
+      "sha256": "a626c69e5c5159fc9f60f98a198ce523815968921b8fef8ca54b6a0eef3292e0",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:02.661Z"
+    },
+    {
+      "contractId": "contract_doc_3d3ae2c03b8fa79a",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/12. 工业安装R3自动驾驶等 13%设备采购2025-8-13.pdf",
+      "fileName": "12. 工业安装R3自动驾驶等 13%设备采购2025-8-13.pdf",
+      "sha256": "34c4916fca4939b266a3dad76719e8e8cae4ccce600ce60dbc98fab7c898b11d",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:07.457Z"
+    },
+    {
+      "contractId": "contract_doc_a90cb388302fb8d4",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/15. 合创智行高精地图等6% 2483.2163万.pdf",
+      "fileName": "15. 合创智行高精地图等6% 2483.2163万.pdf",
+      "sha256": "5c3406b3b3adb088ddc4fe79364770d7de4caa4a22089b4a6e04dceace8098c7",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:12.806Z"
+    },
+    {
+      "contractId": "contract_doc_e01a12a4d972d2ad",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/2. 天安-浪潮_6974.842万_2025-7-25.pdf",
+      "fileName": "2. 天安-浪潮_6974.842万_2025-7-25.pdf",
+      "sha256": "7c401f111a9e7a96ef87856966430c97811ac53e9d92f5e97be18fd490e4fd10",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:18.273Z"
+    },
+    {
+      "contractId": "contract_doc_4ac7a8c8c74b8267",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/14. 工业安装服务合同6% 1614.361684万.pdf",
+      "fileName": "14. 工业安装服务合同6% 1614.361684万.pdf",
+      "sha256": "70cc5c95c37e6ca99f21f44bce94baae20c9be206ddabb1a57a68fa554a154b0",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:22.967Z"
+    },
+    {
+      "contractId": "contract_doc_65f0700d9cee778c",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/4. 8-9天安-中城工_2025-7-29.pdf",
+      "fileName": "4. 8-9天安-中城工_2025-7-29.pdf",
+      "sha256": "5aa9fa4c9eee4cb9cf6aad56d3ac456b0f48838f707a7b9a369f7f13bdd4c7e0",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:29.438Z"
+    },
+    {
+      "contractId": "contract_doc_dabd764df8b072d3",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/3. 3-7浪潮专线延伸服务.pdf",
+      "fileName": "3. 3-7浪潮专线延伸服务.pdf",
+      "sha256": "fecdef03ee6da4b9c78b522e265b964fe73b05ec5846912b5652b2f6df9e1171",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:34.244Z"
+    },
+    {
+      "contractId": "contract_doc_a123ad69c6b1f494",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/11.2 中通服补充修改协议2025-8-14（全区辅助加驶硬件采购项目）.pdf",
+      "fileName": "11.2 中通服补充修改协议2025-8-14（全区辅助加驶硬件采购项目）.pdf",
+      "sha256": "851ec0c3106d035df8b1c923ee5f4f16402b97480f3fa1f9c60abbb58f18c18c",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:38.980Z"
+    },
+    {
+      "contractId": "contract_doc_ffd188742252315f",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/11. 天安-中通服网盈.pdf",
+      "fileName": "11. 天安-中通服网盈.pdf",
+      "sha256": "e4607d13f4fb7be2b3b8203d8e81326ebc688be1ae4b53be018cde7aaa2c6a3f",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:44.314Z"
+    },
+    {
+      "contractId": "contract_doc_41d32dd828b2e703",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/10.1 作废条款有误 上海帆一 天安 2025-7-22.pdf",
+      "fileName": "10.1 作废条款有误 上海帆一 天安 2025-7-22.pdf",
+      "sha256": "d842d648b951e55bcb6bad0850450ff136a5f60681559ba4b82075de207875a7",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:48.636Z"
+    },
+    {
+      "contractId": "contract_doc_e6f4ba4bdb50aedc",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/10. 天安-帆一 2025-7-21.pdf",
+      "fileName": "10. 天安-帆一 2025-7-21.pdf",
+      "sha256": "a6e499ba0be1edcfe9305814f767adcda6855f1fc3f5a5dc8c46f60ff2abdf6f",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:32:56.030Z"
+    },
+    {
+      "contractId": "contract_doc_248c9ea8d9990ee8",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同/前向销售合同盖章版/1. 车路云联合体内容划分盖_2025-7-15.pdf",
+      "fileName": "1. 车路云联合体内容划分盖_2025-7-15.pdf",
+      "sha256": "b9b60d5aa45aa786f650f13db97ba513e90c820cbc5a0efb2aa1b25030403210",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T09:33:03.348Z"
+    },
+    {
+      "contractId": "contract_doc_7079248256d66997",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/后向采购合同/工业安装（2个合同）/天安-工业安装（13%）-车路云一体化项目后向采购合同(签署版).docx",
+      "fileName": "天安-工业安装（13%）-车路云一体化项目后向采购合同(签署版).docx",
+      "sha256": "32d8ffaf8878be89e46be767521a20436968e70e58ac9b36baeebb84f95b7327",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T14:04:20.209Z"
+    },
+    {
+      "contractId": "contract_doc_efbe6b3456c265d3",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/后向采购合同/工业安装（2个合同）/天安-工业安装（6%）-车路云一体化项目后向采购合同(签署版).docx",
+      "fileName": "天安-工业安装（6%）-车路云一体化项目后向采购合同(签署版).docx",
+      "sha256": "179bfbdec919e6204e7bd310bc96895aa06e82b69b9dde1b7ef209515f60d885",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T14:04:26.660Z"
+    },
+    {
+      "contractId": "contract_doc_d1ad4c928bcf8947",
+      "sourcePath": "/Users/tt2000/Documents/天安智联/0000无锡市车路云一体化项目/0.合同/盖章版合同 WORD 版/后向采购合同/联通华盛/采购合同之补充协议-天安-联通-0905-V2.docx",
+      "fileName": "采购合同之补充协议-天安-联通-0905-V2.docx",
+      "sha256": "6e0cd64beb150efe747fca944d49c7ad72cf980a914220193d21dc91c96276ea",
+      "reason": "manual_remove_from_system",
+      "removedAt": "2026-06-07T14:05:02.343Z"
     }
   ]
 }

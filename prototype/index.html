@@ -359,6 +359,7 @@
           </div>
 
           <div class="contract-zoom-surface" id="contractZoomSurface">
+          <div class="contract-kpi-row contract-global-kpi-row" id="contractSummaryKpis"></div>
           <nav class="contract-workspace-tabs" aria-label="合同管理工作区">
             <button class="active" data-contract-workspace="front">1. 前向销售合同梳理</button>
             <button data-contract-workspace="back">2. 后向采购合同梳理</button>
@@ -369,17 +370,6 @@
 
           <section class="contract-workspace active" id="contractWorkspaceFront" data-contract-workspace-panel="front">
             <article class="surface contract-workspace-card">
-              <div class="contract-workspace-title">
-                <div class="contract-title-inline">
-                  <h3>前向销售合同梳理</h3>
-                  <p>导入前向合同后，由人工确认合同流链路、合同金额、清单行和每行税率。</p>
-                </div>
-                <div class="contract-workspace-actions">
-                  <button class="primary-btn" data-contract-import="front">导入前向销售合同文件</button>
-                  <button class="ghost-btn" data-contract-import="front-batch">导入前向销售合同目录</button>
-                </div>
-              </div>
-              <div class="contract-kpi-row" id="frontContractKpis"></div>
               <div class="contract-confirm-layout table-only">
                 <div class="table-wrap contract-workspace-table-wrap">
                   <table id="frontManualContractTable" class="contract-manual-table">
@@ -393,30 +383,13 @@
 
           <section class="contract-workspace" id="contractWorkspaceBack" data-contract-workspace-panel="back">
             <article class="surface contract-workspace-card">
-              <div class="contract-workspace-title">
-                <div>
-                  <span class="eyebrow">Back procurement</span>
-                  <h3>后向采购合同梳理</h3>
-                  <p>人工确认后向合同所属链路，并选择关联的一个或多个前向销售合同。</p>
-                </div>
-                <div class="contract-workspace-actions"><button class="primary-btn" data-contract-import="back">导入后向采购合同文件</button><button class="ghost-btn" data-contract-import="back-batch">导入后向采购合同目录</button></div>
-              </div>
-              <div class="contract-kpi-row" id="backContractKpis"></div>
-              <div class="contract-confirm-layout two-pane">
-                <div class="table-wrap contract-workspace-table-wrap">
+              <div class="contract-confirm-layout table-only">
+                <div class="table-wrap contract-workspace-table-wrap contract-workspace-table-wrap-sticky">
                   <table id="backManualContractTable" class="contract-manual-table">
-                    <thead><tr><th>序号</th><th>后向采购合同</th><th>供应商</th><th>合同金额（元）</th><th>所属链路</th><th>关联前向合同</th><th>状态</th><th>操作</th></tr></thead>
+                    <thead><tr><th>序号</th><th>合同流链路</th><th>后向采购合同</th><th>供应商</th><th>合同金额（元）</th><th>涉及税率</th><th>确认状态</th><th>操作</th></tr></thead>
                     <tbody id="backManualContractRows"></tbody>
                   </table>
                 </div>
-                <aside class="contract-side-panel">
-                  <h4>人工关联要求</h4>
-                  <ul>
-                    <li>一个后向合同可关联多个前向合同。</li>
-                    <li>关联对象最终必须落到清单行级。</li>
-                    <li>付款条款、税率、金额均需人工确认。</li>
-                  </ul>
-                </aside>
               </div>
             </article>
           </section>
