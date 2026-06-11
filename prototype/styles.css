@@ -175,7 +175,6 @@ body.sidebar-compact .sidebar {
 body.sidebar-compact .brand {
   justify-content: center;
   gap: 0;
-  padding-bottom: 14px;
 }
 
 body.sidebar-compact .brand-text,
@@ -188,12 +187,10 @@ body.sidebar-compact .nav-item span {
 }
 
 body.sidebar-compact .brand-mark {
+  width: 34px;
+  height: 34px;
   flex-basis: 34px;
   box-shadow: 0 0 0 3px rgba(33, 215, 232, 0.18), 0 0 18px rgba(33, 215, 232, 0.26);
-}
-
-body.sidebar-compact .nav {
-  margin-top: 46px;
 }
 
 body.sidebar-compact .nav-item {
@@ -6232,6 +6229,38 @@ body[data-visual-theme="command"] .nav-item::before {
 body[data-visual-theme="trajectory"] .nav-item::before {
   background: rgba(215, 210, 200, 0.13);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+}
+
+body.sidebar-compact .brand {
+  padding-bottom: 22px;
+}
+
+body.sidebar-compact .nav {
+  margin-top: 24px;
+}
+
+body.sidebar-compact[data-visual-theme="macos"] .brand,
+body.sidebar-compact:not([data-visual-theme]) .brand {
+  padding-bottom: 16px;
+}
+
+body.sidebar-compact[data-visual-theme="macos"] .sidebar,
+body.sidebar-compact:not([data-visual-theme]) .sidebar {
+  padding-right: 1px;
+  padding-left: 1px;
+}
+
+body.sidebar-compact .brand-mark {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+}
+
+body.sidebar-compact[data-visual-theme="macos"] .brand-mark,
+body.sidebar-compact:not([data-visual-theme]) .brand-mark {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
 }
 
 /* Ops page summary card relayout: move third-line note into second row */
