@@ -401,9 +401,23 @@ function hasMapNodeId(value) {
   return Boolean(text && text !== "0");
 }
 
+function hasFiveDigitMapNodeId(value) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "0") return false;
+  return text.replace(/\D/g, "").length >= 5;
+}
+
+function isShortPresentMapNodeId(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return false;
+  const digitLength = text.replace(/\D/g, "").length;
+  return digitLength > 0 && digitLength < 5;
+}
+
 function mapQualityEmpty() {
   return {
     nodeIdMissing: false,
+    mapXmlNodeIdShort: false,
     stopLineMissing: false,
   };
 }
@@ -411,6 +425,7 @@ function mapQualityEmpty() {
 function mergeMapQuality(target, source) {
   if (!source) return target;
   target.nodeIdMissing = target.nodeIdMissing || Boolean(source.nodeIdMissing);
+  target.mapXmlNodeIdShort = target.mapXmlNodeIdShort || Boolean(source.mapXmlNodeIdShort);
   target.stopLineMissing = target.stopLineMissing || Boolean(source.stopLineMissing);
   return target;
 }
@@ -487,15 +502,25 @@ function hasXmlDownstreamNode(laneXml) {
   });
 }
 
+function hasShortXmlDownstreamNode(laneXml) {
+  const connections = xmlBlocks(laneXml, "Connection");
+  return connections.some((connectionXml) => {
+    const remote = connectionXml.match(/<remoteIntersection\b[^>]*>([\s\S]*?)<\/remoteIntersection\s*>/)?.[1] || "";
+    return isShortPresentMapNodeId(xmlTagText(remote, "id"));
+  });
+}
+
 function inspectMapXmlContent(content) {
   const quality = mapQualityEmpty();
   xmlBlocks(content, "Link").forEach((linkXml) => {
     const upstream = linkXml.match(/<upstreamNodeId\b[^>]*>([\s\S]*?)<\/upstreamNodeId\s*>/)?.[1] || "";
     if (!hasMapNodeId(xmlTagText(upstream, "id"))) quality.nodeIdMissing = true;
+    if (isShortPresentMapNodeId(xmlTagText(upstream, "id"))) quality.mapXmlNodeIdShort = true;
     const normalLanes = xmlBlocks(linkXml, "Lane").filter(isNormalVehicleXmlLane);
     if (normalLanes.length && !normalLanes.some(hasXmlStopLine)) quality.stopLineMissing = true;
     normalLanes.forEach((laneXml) => {
       if (!hasXmlDownstreamNode(laneXml)) quality.nodeIdMissing = true;
+      if (hasShortXmlDownstreamNode(laneXml)) quality.mapXmlNodeIdShort = true;
     });
   });
   return quality;
@@ -583,6 +608,7 @@ function buildMapAssetIndex(files) {
       !hasSignal && "信号机",
       !hasPreview && "SVG预览",
       intersection.quality.nodeIdMissing && "上下游 NodeID",
+      intersection.quality.mapXmlNodeIdShort && "MAP-XML上下游 NodeID<5位",
       intersection.quality.stopLineMissing && "某方向车道停止线",
     ].filter(Boolean);
     const mapXmlPreview = intersection.files.find((file) => file.category === "map_svg" && file.folder === "map_xml");

@@ -177,6 +177,12 @@
           </div>
 
           <div class="site-view" id="mapView">
+            <div class="site-map-toolbar">
+              <label class="map-warning-toggle">
+                <input type="checkbox" id="mapNodeIdWarningBlink" />
+                <span>上下游 NodeID 异常点位闪烁</span>
+              </label>
+            </div>
             <div class="map-layout">
               <div class="map-canvas" id="siteMap"></div>
               <aside class="map-list" id="mapList"></aside>
@@ -636,17 +642,36 @@
         </div>
       </div>
       <div class="drawer-body">
-        <div class="drawer-map" id="drawerMap"></div>
-        <div class="detail-tabs">
-          <button class="active" data-detail-tab="base">基础</button>
-          <button data-detail-tab="device">设备</button>
-          <button data-detail-tab="archive">一点一档</button>
-          <button data-detail-tab="contract">合同</button>
+        <div class="drawer-visual-layout">
+          <section class="drawer-map-xml-panel">
+            <div class="drawer-panel-head">
+              <span>MAP-XML 高精地图</span>
+              <small id="drawerMapXmlMeta">等待点位地图资产</small>
+            </div>
+            <div class="drawer-map-xml-preview" id="drawerMapXmlPreview">
+              <div class="empty-detail">打开点位后加载 MAP-XML 转换 SVG</div>
+            </div>
+          </section>
+          <section class="drawer-gcj-panel">
+            <div class="drawer-panel-head">
+              <span>GCJ-02 位置</span>
+              <small id="drawerGcjSubtitle">当前点位与周边点位</small>
+            </div>
+            <div class="drawer-map" id="drawerMap"></div>
+            <div class="drawer-info-compact">
+              <div class="detail-tabs">
+                <button class="active" data-detail-tab="base">基础</button>
+                <button data-detail-tab="device">设备</button>
+                <button data-detail-tab="archive">一点一档</button>
+                <button data-detail-tab="contract">合同</button>
+              </div>
+              <div class="detail-pane active" id="detailBase"></div>
+              <div class="detail-pane" id="detailDevice"></div>
+              <div class="detail-pane" id="detailArchive"></div>
+              <div class="detail-pane" id="detailContract"></div>
+            </div>
+          </section>
         </div>
-        <div class="detail-pane active" id="detailBase"></div>
-        <div class="detail-pane" id="detailDevice"></div>
-        <div class="detail-pane" id="detailArchive"></div>
-        <div class="detail-pane" id="detailContract"></div>
       </div>
     </aside>
 

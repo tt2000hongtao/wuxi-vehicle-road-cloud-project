@@ -6,6 +6,7 @@ const state = {
   perception: "全部感知类型",
   adaptive: "全部自适应",
   variableLane: "全部可变车道",
+  mapNodeIdWarningBlink: false,
   selectedSite: null,
   importType: null,
   importTask: null,
@@ -985,6 +986,73 @@ function startSiteColumnResize(event, handle) {
   document.addEventListener("mouseup", onUp);
 }
 
+function mapAssetForSite(site) {
+  const nodeId = String(site?.nodeId || "").trim();
+  if (!nodeId) return null;
+  return mapAssetState.intersections.find((asset) => String(asset.nodeId || "").trim() === nodeId) || null;
+}
+
+function siteHasMapXmlNodeIdWarning(site) {
+  const asset = mapAssetForSite(site);
+  if (!asset) return false;
+  const missingItems = Array.isArray(asset.missing) ? asset.missing : [];
+  return Boolean(
+    asset.quality?.mapXmlNodeIdShort ||
+    missingItems.some((item) => String(item || "").includes("MAP-XML上下游 NodeID<5位"))
+  );
+}
+
+function renderSiteMap(rows = filteredSites()) {
+  renderMap($("#siteMap"), rows, {
+    nodeIdWarningBlink: state.mapNodeIdWarningBlink,
+  });
+}
+
+function renderDrawerMapXmlPreview(site) {
+  const preview = $("#drawerMapXmlPreview");
+  const meta = $("#drawerMapXmlMeta");
+  if (!preview || !meta) return;
+  sizeDrawerMapXmlPreview();
+  const asset = mapAssetForSite(site);
+  if (!asset) {
+    meta.textContent = mapAssetState.loading ? "地图资产扫描中" : "未匹配地图资产";
+    preview.innerHTML = `<div class="empty-detail">${mapAssetState.loading ? "正在扫描地图资产目录" : "未找到该点位的 MAP-XML SVG 预览"}</div>`;
+    return;
+  }
+  const svgFile = mapAssetFileByPath(asset, asset.mapXmlSvgPath);
+  if (!asset.mapXmlSvgPath) {
+    meta.textContent = "未找到 map_xml SVG";
+    preview.innerHTML = `<div class="empty-detail">该点位 map_xml 目录没有 SVG 预览文件</div>`;
+    return;
+  }
+  const displayName = mapAssetDisplayName(asset);
+  const svgUrl = `/api/map-assets/file?path=${encodeURIComponent(asset.mapXmlSvgPath)}`;
+  meta.textContent = svgFile ? `由 ${svgFile.fileName} 生成` : "map_xml 目录 SVG";
+  preview.innerHTML = `<img src="${svgUrl}" alt="${displayName} MAP-XML 转换 SVG 高精地图" />`;
+  requestAnimationFrame(sizeDrawerMapXmlPreview);
+}
+
+async function ensureDrawerMapXmlPreview(site) {
+  renderDrawerMapXmlPreview(site);
+  if (!mapAssetForSite(site) && !mapAssetState.loading) {
+    await loadMapAssets(false);
+    renderDrawerMapXmlPreview(site);
+  }
+}
+
+function sizeDrawerMapXmlPreview() {
+  const preview = $("#drawerMapXmlPreview");
+  const panel = $(".drawer-map-xml-panel");
+  if (!preview || !panel) return;
+  const panelRect = panel.getBoundingClientRect();
+  const headerHeight = panel.querySelector(".drawer-panel-head")?.getBoundingClientRect().height || 42;
+  const availableHeight = Math.max(240, panelRect.height - headerHeight - 14);
+  const availableWidth = Math.max(240, panelRect.width - 2);
+  const size = Math.floor(Math.min(availableWidth, availableHeight));
+  preview.style.width = `${size}px`;
+  preview.style.height = `${size}px`;
+}
+
 function importPanelElement() {
   if (state.panel === "ops" && $("#opsImportPanel")) return $("#opsImportPanel");
   return state.panel === "imports" && $("#importCenterPanel") ? $("#importCenterPanel") : $("#importPanel");
@@ -1072,7 +1140,7 @@ function setPanel(panelId, options = {}) {
   renderPageHeader();
   if (panelId === "overview") requestAnimationFrame(renderOverviewMap);
   if (panelId === "sites") requestAnimationFrame(applySiteViewLayoutSettled);
-  if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => { applySiteViewLayoutSettled(); renderMap($("#siteMap"), filteredSites()); });
+  if (panelId === "sites" && state.view === "map") requestAnimationFrame(() => { applySiteViewLayoutSettled(); renderSiteMap(); });
   if (panelId === "mapAssets") renderMapAssets();
   if (panelId === "contracts") renderContracts();
   if (panelId === "documents") renderDocuments();
@@ -1171,6 +1239,12 @@ async function loadMapAssets(force = false) {
   } finally {
     mapAssetState.loading = false;
     renderMapAssets();
+    if (state.panel === "sites" && state.view === "map") {
+      renderSiteMap();
+    }
+    if ($("#detailDrawer")?.classList.contains("open") && state.selectedSite) {
+      renderDrawerMapXmlPreview(state.selectedSite);
+    }
   }
 }
 
@@ -2538,11 +2612,15 @@ function renderFallbackMap(container, items, options = {}) {
   items.forEach((site) => {
     const pos = markerPosition(site, bounds);
     const isCurrent = options.currentNodeId && site.nodeId === String(options.currentNodeId);
+    const hasMapXmlNodeIdWarning = siteHasMapXmlNodeIdWarning(site);
+    const shouldBlinkNodeIdWarning = options.nodeIdWarningBlink && hasMapXmlNodeIdWarning;
+    const titlePrefix = isCurrent ? "当前点位：" : "周边点位：";
+    const warningTitle = hasMapXmlNodeIdWarning ? "（MAP-XML上下游 NodeID 位数小于5位）" : "";
     const marker = document.createElement("div");
-    marker.className = `marker ${districtClass(site)} ${isCurrent ? "current" : "neighbor"} ${site.issueCount ? "has-issue" : ""}`;
+    marker.className = `marker ${districtClass(site)} ${isCurrent ? "current" : "neighbor"} ${site.issueCount ? "has-issue" : ""} ${shouldBlinkNodeIdWarning ? "map-nodeid-warning" : ""}`;
     marker.style.left = `${pos.left}%`;
     marker.style.top = `${pos.top}%`;
-    marker.title = `${isCurrent ? "当前点位：" : "周边点位："}${site.nodeId} ${site.name}`;
+    marker.title = `${titlePrefix}${site.nodeId} ${site.name}${warningTitle}`;
     marker.innerHTML = `<button aria-label="${site.name}"></button><span>${isCurrent ? "当前" : ""}</span>`;
     marker.querySelector("button").addEventListener("click", () => openSite(site.nodeId));
     container.appendChild(marker);
@@ -2582,12 +2660,15 @@ function renderAmap(container, items, options = {}) {
 
   const markers = items.map((site) => {
     const isCurrent = options.currentNodeId && site.nodeId === String(options.currentNodeId);
+    const hasMapXmlNodeIdWarning = siteHasMapXmlNodeIdWarning(site);
+    const shouldBlinkNodeIdWarning = options.nodeIdWarningBlink && hasMapXmlNodeIdWarning;
+    const warningTitle = hasMapXmlNodeIdWarning ? "（MAP-XML上下游 NodeID 位数小于5位）" : "";
     const marker = new window.AMap.Marker({
       position: [site.lngGcj, site.latGcj],
-      title: `${isCurrent ? "当前点位：" : "周边点位："}${site.nodeId} ${site.name}`,
+      title: `${isCurrent ? "当前点位：" : "周边点位："}${site.nodeId} ${site.name}${warningTitle}`,
       offset: new window.AMap.Pixel(isCurrent ? -13 : -7, isCurrent ? -13 : -7),
       zIndex: isCurrent ? 120 : 100,
-      content: `<button class="amap-site-marker ${districtClass(site)} ${isCurrent ? "current" : "neighbor"} ${site.issueCount ? "has-issue" : ""}" title="${site.name}" data-node="${site.nodeId}">${isCurrent ? "当前" : ""}</button>`,
+      content: `<button class="amap-site-marker ${districtClass(site)} ${isCurrent ? "current" : "neighbor"} ${site.issueCount ? "has-issue" : ""} ${shouldBlinkNodeIdWarning ? "map-nodeid-warning" : ""}" title="${site.name}${warningTitle}" data-node="${site.nodeId}">${isCurrent ? "当前" : ""}</button>`,
     });
     marker.on("click", () => openSite(site.nodeId));
     return marker;
@@ -2679,7 +2760,7 @@ function renderSites() {
     .join("");
 
   if (state.view === "map") {
-    renderMap($("#siteMap"), rows);
+    renderSiteMap(rows);
   }
   $("#mapList").innerHTML = rows
     .map(
@@ -3412,6 +3493,14 @@ function renderManualContractRows(target, groups, direction) {
     })
     .join('');
   renderContractManualColumnHandles(node.closest("table"));
+}
+
+function selectContractManualRow(row) {
+  if (!row) return;
+  const table = row.closest('.contract-manual-table');
+  if (!table) return;
+  table.querySelectorAll('tr.contract-selected-row').forEach((item) => item.classList.remove('contract-selected-row'));
+  row.classList.add('contract-selected-row');
 }
 
 function parseContractAmountInput(value) {
@@ -4615,6 +4704,9 @@ function nearestSites(site) {
 function renderDrawer(site) {
   $("#drawerNodeId").textContent = `NodeID ${site.nodeId}`;
   $("#drawerTitle").textContent = site.name;
+  $("#drawerGcjSubtitle").textContent = `经度 ${site.lngGcj.toFixed(8)} / 纬度 ${site.latGcj.toFixed(8)}`;
+  renderDrawerMapXmlPreview(site);
+  ensureDrawerMapXmlPreview(site);
   const nearby = [site, ...nearestSites(site)];
   renderMap($("#drawerMap"), nearby, {
     label: `当前点位：${site.name}；周边点位：${nearby.length - 1} 个`,
@@ -4625,13 +4717,11 @@ function renderDrawer(site) {
   });
 
   $("#detailBase").innerHTML = `
-    <div class="kv-grid">
+    <div class="kv-grid drawer-kv-compact">
       <div class="kv"><span>行政区域</span><strong>${districtBadge(site)}</strong></div>
       <div class="kv"><span>点位类型</span><strong>${site.type}</strong></div>
       <div class="kv"><span>信号机厂商</span><strong>${site.vendor}</strong></div>
       <div class="kv"><span>感知点位类型</span><strong>${perceptionType(site)}</strong></div>
-      <div class="kv"><span>GCJ-02 经度</span><strong>${site.lngGcj.toFixed(8)}</strong></div>
-      <div class="kv"><span>GCJ-02 纬度</span><strong>${site.latGcj.toFixed(8)}</strong></div>
       <div class="kv"><span>是否自适应点位</span><strong>${site.adaptive ? "是" : "否"}</strong></div>
       <div class="kv"><span>是否可变车道路口</span><strong>${isVariableLane(site) ? "是" : "否"}</strong></div>
       <div class="kv"><span>CGCS2000</span><strong>仅原始数据审计</strong></div>
@@ -4701,6 +4791,7 @@ function openSite(nodeId) {
   $("#detailDrawer").classList.add("open");
   $("#detailDrawer").setAttribute("aria-hidden", "false");
   $("#scrim").classList.add("open");
+  requestAnimationFrame(sizeDrawerMapXmlPreview);
 }
 
 function renderFallbackDrawer(site) {
@@ -4741,11 +4832,15 @@ function bindEvents() {
       if (state.view === "map") {
         requestAnimationFrame(() => {
           applySiteViewLayoutSettled();
-          renderMap($("#siteMap"), filteredSites());
+          renderSiteMap();
         });
       }
     }),
   );
+  $("#mapNodeIdWarningBlink")?.addEventListener("change", (event) => {
+    state.mapNodeIdWarningBlink = event.target.checked;
+    if (state.panel === "sites" && state.view === "map") renderSiteMap();
+  });
   document.body.addEventListener("click", (event) => {
     const chooseImport = event.target.closest("[data-choose-import]");
     if (chooseImport) {
@@ -4765,6 +4860,9 @@ function bindEvents() {
       confirmImport(confirmButton.dataset.confirmImport);
       return;
     }
+    const manualContractRow = event.target.closest("tr[data-manual-contract-id]");
+    if (manualContractRow) selectContractManualRow(manualContractRow);
+
     const contractSystemRemove = event.target.closest("[data-contract-system-remove]");
     if (contractSystemRemove) {
       removeContractFromSystem(
@@ -5126,11 +5224,12 @@ function bindEvents() {
   $("#exportAbnormalStats").addEventListener("click", () => exportRoadsideExcel("stats"));
   window.addEventListener("amap-ready", () => {
     if (state.panel === "ops") renderOpsMap(roadsideRowsForSelectedDate());
-    if (state.view === "map") renderMap($("#siteMap"), filteredSites());
+    if (state.view === "map") renderSiteMap();
   });
   window.addEventListener("resize", () => {
     applySiteViewLayoutSettled();
     if (state.panel === "contracts") applyContractPageScale();
+    if ($("#detailDrawer")?.classList.contains("open")) sizeDrawerMapXmlPreview();
     if (state.activeSiteFilter) renderSiteFilterPopover();
     if (state.activeMapAssetFilter) renderMapAssetFilterPopover();
   });
