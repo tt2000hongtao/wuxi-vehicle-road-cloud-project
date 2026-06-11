@@ -1743,6 +1743,36 @@ function toggleVisualTheme() {
   saveVisualTheme(state.visualTheme);
 }
 
+function currentFullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function renderFullscreenToggle() {
+  const toggle = $("#fullscreenToggle");
+  if (!toggle) return;
+  const isFullscreen = Boolean(currentFullscreenElement());
+  toggle.textContent = isFullscreen ? "退出全屏" : "全屏";
+  toggle.setAttribute("aria-pressed", String(isFullscreen));
+  toggle.title = isFullscreen ? "退出全屏显示" : "进入全屏显示";
+}
+
+async function toggleFullscreen() {
+  try {
+    if (currentFullscreenElement()) {
+      const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exitFullscreen) await exitFullscreen.call(document);
+    } else {
+      const target = document.documentElement;
+      const requestFullscreen = target.requestFullscreen || target.webkitRequestFullscreen;
+      if (requestFullscreen) await requestFullscreen.call(target);
+    }
+  } catch (error) {
+    console.warn("Fullscreen toggle failed.", error);
+  } finally {
+    renderFullscreenToggle();
+  }
+}
+
 function renderMetrics() {
   $("#metricSiteTotal").textContent = formatNumber(data.stats.siteTotal);
   $("#metricDeviceRows").textContent = formatNumber(data.stats.deviceRows);
@@ -5123,7 +5153,9 @@ function bindEvents() {
   $("#closeDrawer").addEventListener("click", closeDrawer);
   $("#scrim").addEventListener("click", closeDrawer);
   $("#visualThemeToggle").addEventListener("click", toggleVisualTheme);
-  $("#openFirstSite").addEventListener("click", () => openSite(sites[0].nodeId));
+  $("#fullscreenToggle").addEventListener("click", toggleFullscreen);
+  document.addEventListener("fullscreenchange", renderFullscreenToggle);
+  document.addEventListener("webkitfullscreenchange", renderFullscreenToggle);
   $("#importSiteTable").addEventListener("click", () => showImportPanel("sites"));
   $("#importDeviceTable").addEventListener("click", () => showImportPanel("devices"));
   $("#siteImportInput").addEventListener("change", (event) => {
@@ -5259,6 +5291,7 @@ async function init() {
   renderOps();
   setPanel(state.panel, { updateHash: Boolean(globalThis.location?.hash) });
   bindEvents();
+  renderFullscreenToggle();
   loadMapAssets();
   loadDocumentAssets();
   loadContractRelationships();
