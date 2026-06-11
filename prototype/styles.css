@@ -323,6 +323,8 @@ body.sidebar-transitioning .brand {
 
 .panel {
   display: none;
+  width: 100%;
+  min-width: 0;
 }
 
 .sr-only {
@@ -342,6 +344,25 @@ body.sidebar-transitioning .brand {
 .site-view.active,
 .detail-pane.active {
   display: block;
+}
+
+.panel > *,
+.overview-actions,
+.metric-grid,
+.dashboard-grid,
+.section-head,
+.surface,
+.table-wrap,
+.site-view,
+.map-asset-layout,
+.ops-layout,
+.document-layout,
+.warehouse-grid,
+.contract-workspace,
+.contract-workspace-card,
+.contract-zoom-surface {
+  width: 100%;
+  min-width: 0;
 }
 
 .overview-actions {
@@ -3225,7 +3246,7 @@ body[data-visual-theme="trajectory"] .map-asset-filter-options label:hover {
   }
 
   .shell {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .sidebar {
@@ -4996,8 +5017,7 @@ body[data-visual-theme="trajectory"] .scrim {
 
 @media (max-width: 900px) {
   .shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    flex-direction: column;
     width: 100vw;
     min-height: 100vh;
     margin: 0;
@@ -5005,12 +5025,13 @@ body[data-visual-theme="trajectory"] .scrim {
   }
 
   .sidebar {
-    grid-row: 1;
+    flex: 0 0 auto;
+    width: 100%;
     height: auto;
   }
 
   .workspace {
-    grid-row: 2;
+    flex: 1 1 auto;
     height: auto;
   }
 
