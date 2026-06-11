@@ -1,0 +1,17 @@
+.DS_Store
+**/.DS_Store
+
+# Runtime state and local service logs
+prototype/logs/
+prototype/storage/roadside-status-state.json
+data/state_store.db/
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+
+# Local scratch output
+out.txt
+outputs/
+*.bak-before-*
+
