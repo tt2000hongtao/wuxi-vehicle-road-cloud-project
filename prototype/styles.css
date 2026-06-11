@@ -12,7 +12,6 @@
   --red: #b53b3b;
   --green: #2e7d58;
   --shadow: 0 16px 40px rgba(29, 48, 54, 0.12);
-  --sidebar-width: 149px;
 }
 
 * {
@@ -45,16 +44,16 @@ button {
 .sidebar {
   position: sticky;
   top: 0;
-  flex: 0 0 var(--sidebar-width);
-  width: var(--sidebar-width);
+  flex: 0 0 149px;
+  width: 149px;
   height: 100vh;
   padding: 18px 3px;
   background: #102c30;
   color: #eef7f6;
   overflow: hidden;
   transition:
-    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    flex-basis 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    flex-basis 0.34s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: width, flex-basis;
 }
 
@@ -175,11 +174,9 @@ button {
   padding: 24px;
 }
 
-body.sidebar-compact .shell {
-  --sidebar-width: 40px;
-}
-
 body.sidebar-compact .sidebar {
+  flex-basis: 40px;
+  width: 40px;
   padding-right: 3px;
   padding-left: 3px;
 }
@@ -6284,10 +6281,6 @@ body[data-visual-theme="trajectory"] .brand-mark {
 
 body.sidebar-compact .brand {
   padding-bottom: 22px;
-}
-
-body.sidebar-compact .shell {
-  --sidebar-width: 40px;
 }
 
 body.sidebar-compact .nav {
