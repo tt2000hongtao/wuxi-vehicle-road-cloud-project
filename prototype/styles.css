@@ -38,9 +38,10 @@ button {
 
 .shell {
   display: grid;
-  grid-template-columns: var(--sidebar-width, 149px) minmax(0, 1fr);
+  grid-template-columns: 149px minmax(0, 1fr);
   min-height: 100vh;
-  transition: grid-template-columns 0.18s ease;
+  transition: grid-template-columns 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: grid-template-columns;
 }
 
 .sidebar {
@@ -164,7 +165,7 @@ button {
 }
 
 body.sidebar-compact .shell {
-  --sidebar-width: 40px;
+  grid-template-columns: 40px minmax(0, 1fr);
 }
 
 body.sidebar-compact .sidebar {
@@ -3328,7 +3329,7 @@ body::before {
 }
 
 .shell {
-  grid-template-columns: var(--sidebar-width, 149px) minmax(0, 1fr);
+  grid-template-columns: 149px minmax(0, 1fr);
   width: 100vw;
   min-height: 100vh;
   margin: 0;
@@ -4054,7 +4055,7 @@ body[data-visual-theme="command"]::before {
 }
 
 body[data-visual-theme="command"] .shell {
-  grid-template-columns: var(--sidebar-width, 149px) minmax(0, 1fr);
+  grid-template-columns: 149px minmax(0, 1fr);
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
@@ -6233,6 +6234,10 @@ body[data-visual-theme="trajectory"] .nav-item::before {
 
 body.sidebar-compact .brand {
   padding-bottom: 22px;
+}
+
+body.sidebar-compact .shell {
+  grid-template-columns: 40px minmax(0, 1fr);
 }
 
 body.sidebar-compact .nav {
