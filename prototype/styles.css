@@ -62,7 +62,7 @@ button {
   display: flex;
   gap: 8px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 57px;
   padding-bottom: 22px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
@@ -182,7 +182,7 @@ body.sidebar-compact .sidebar {
 }
 
 body.sidebar-compact .brand {
-  gap: 0;
+  gap: 8px;
 }
 
 body.sidebar-compact .brand-text,
@@ -211,18 +211,8 @@ body.sidebar-compact .brand-mark {
   box-shadow: 0 0 0 3px rgba(33, 215, 232, 0.18), 0 0 18px rgba(33, 215, 232, 0.26);
 }
 
-body.sidebar-compact .nav-item {
-  justify-content: center;
-  padding: 0;
-}
-
 body.sidebar-transitioning .brand {
-  gap: 0;
-}
-
-body.sidebar-transitioning .nav-item {
-  justify-content: center;
-  padding: 0;
+  gap: 8px;
 }
 
 .topbar {
@@ -6256,6 +6246,16 @@ body[data-visual-theme="trajectory"] .nav-item::before {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
 }
 
+.brand-mark,
+body[data-visual-theme="macos"] .brand-mark,
+body:not([data-visual-theme]) .brand-mark,
+body[data-visual-theme="command"] .brand-mark,
+body[data-visual-theme="trajectory"] .brand-mark {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+}
+
 body.sidebar-compact .brand {
   padding-bottom: 22px;
 }
@@ -6273,12 +6273,6 @@ body.sidebar-compact:not([data-visual-theme]) .brand {
   padding-bottom: 16px;
 }
 
-body.sidebar-compact[data-visual-theme="macos"] .sidebar,
-body.sidebar-compact:not([data-visual-theme]) .sidebar {
-  padding-right: 1px;
-  padding-left: 1px;
-}
-
 body.sidebar-compact .brand-mark {
   width: 34px;
   height: 34px;
@@ -6287,9 +6281,9 @@ body.sidebar-compact .brand-mark {
 
 body.sidebar-compact[data-visual-theme="macos"] .brand-mark,
 body.sidebar-compact:not([data-visual-theme]) .brand-mark {
-  width: 38px;
-  height: 38px;
-  flex-basis: 38px;
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
 }
 
 /* Ops page summary card relayout: move third-line note into second row */
