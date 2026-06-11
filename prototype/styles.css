@@ -169,6 +169,9 @@ button {
 }
 
 .workspace {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
   padding: 24px;
 }
 
@@ -3369,6 +3372,8 @@ body::before {
 
 .workspace {
   grid-row: 1;
+  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
   height: 100vh;
   padding: 22px 24px 28px;
