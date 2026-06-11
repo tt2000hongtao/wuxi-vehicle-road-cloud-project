@@ -40,6 +40,7 @@ button {
   display: grid;
   grid-template-columns: var(--sidebar-width, 149px) minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.18s ease;
 }
 
 .sidebar {
@@ -49,6 +50,8 @@ button {
   padding: 18px 10px;
   background: #102c30;
   color: #eef7f6;
+  overflow: hidden;
+  transition: padding 0.18s ease;
 }
 
 .brand {
@@ -61,6 +64,7 @@ button {
 
 .brand-text {
   min-width: 0;
+  transition: opacity 0.14s ease;
 }
 
 .brand-mark {
@@ -159,12 +163,42 @@ button {
   padding: 24px;
 }
 
-body.sidebar-expanded .shell {
-  --sidebar-width: 220px;
+body.sidebar-compact .shell {
+  --sidebar-width: 40px;
 }
 
-body.sidebar-expanded .brand-mark {
+body.sidebar-compact .sidebar {
+  padding-right: 3px;
+  padding-left: 3px;
+}
+
+body.sidebar-compact .brand {
+  justify-content: center;
+  gap: 0;
+  padding-bottom: 14px;
+}
+
+body.sidebar-compact .brand-text,
+body.sidebar-compact .sidebar-note,
+body.sidebar-compact .nav-item span {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body.sidebar-compact .brand-mark {
+  flex-basis: 34px;
   box-shadow: 0 0 0 3px rgba(33, 215, 232, 0.18), 0 0 18px rgba(33, 215, 232, 0.26);
+}
+
+body.sidebar-compact .nav {
+  margin-top: 46px;
+}
+
+body.sidebar-compact .nav-item {
+  justify-content: center;
+  padding: 0;
 }
 
 .topbar {

@@ -97,7 +97,7 @@ const CONTRACT_REVIEW_STORAGE_KEY = "wuxi-contract-review-decisions-v1";
 const CONTRACT_MANUAL_CONFIRMATIONS_STORAGE_KEY = "wuxi-contract-manual-confirmations-v1";
 const CONTRACT_PAGE_SCALE_STORAGE_KEY = "wuxi-contract-page-scale-v1";
 const CURRENT_PANEL_STORAGE_KEY = "wuxi-current-panel-v1";
-const SIDEBAR_EXPANDED_STORAGE_KEY = "wuxi-sidebar-expanded-v1";
+const SIDEBAR_COMPACT_STORAGE_KEY = "wuxi-sidebar-compact-v1";
 const visualThemes = ["command", "trajectory"];
 const persistenceState = {
   backendAvailable: false,
@@ -1744,35 +1744,35 @@ function toggleVisualTheme() {
   saveVisualTheme(state.visualTheme);
 }
 
-function loadSidebarExpanded() {
+function loadSidebarCompact() {
   try {
-    return localStorage.getItem(SIDEBAR_EXPANDED_STORAGE_KEY) === "true";
+    return localStorage.getItem(SIDEBAR_COMPACT_STORAGE_KEY) === "true";
   } catch {
     return false;
   }
 }
 
-function saveSidebarExpanded(expanded) {
+function saveSidebarCompact(compact) {
   try {
-    localStorage.setItem(SIDEBAR_EXPANDED_STORAGE_KEY, String(expanded));
+    localStorage.setItem(SIDEBAR_COMPACT_STORAGE_KEY, String(compact));
   } catch {
     // Storage can be unavailable in restricted browser contexts; the live toggle still works.
   }
 }
 
-function applySidebarExpanded(expanded = false) {
-  document.body.classList.toggle("sidebar-expanded", Boolean(expanded));
+function applySidebarCompact(compact = false) {
+  document.body.classList.toggle("sidebar-compact", Boolean(compact));
   const toggle = $("#sidebarWidthToggle");
   if (!toggle) return;
-  toggle.setAttribute("aria-expanded", String(expanded));
-  toggle.setAttribute("aria-label", expanded ? "缩进左侧菜单" : "延展左侧菜单");
-  toggle.title = expanded ? "缩进左侧菜单" : "延展左侧菜单";
+  toggle.setAttribute("aria-expanded", String(!compact));
+  toggle.setAttribute("aria-label", compact ? "展开左侧菜单" : "缩进左侧菜单");
+  toggle.title = compact ? "展开左侧菜单" : "缩进左侧菜单";
 }
 
-function toggleSidebarExpanded() {
-  const expanded = !document.body.classList.contains("sidebar-expanded");
-  applySidebarExpanded(expanded);
-  saveSidebarExpanded(expanded);
+function toggleSidebarCompact() {
+  const compact = !document.body.classList.contains("sidebar-compact");
+  applySidebarCompact(compact);
+  saveSidebarCompact(compact);
   requestAnimationFrame(applySiteViewLayoutSettled);
 }
 
@@ -4877,7 +4877,7 @@ function closeDrawer() {
 }
 
 function bindEvents() {
-  $("#sidebarWidthToggle")?.addEventListener("click", toggleSidebarExpanded);
+  $("#sidebarWidthToggle")?.addEventListener("click", toggleSidebarCompact);
   $$(".nav-item").forEach((item) => item.addEventListener("click", () => setPanel(item.dataset.panel)));
   $$("[data-panel-link]").forEach((item) => item.addEventListener("click", () => setPanel(item.dataset.panelLink)));
   globalThis.addEventListener?.("hashchange", () => setPanel(panelIdFromLocation(), { updateHash: false }));
@@ -5307,7 +5307,7 @@ async function init() {
   loadContractManualConfirmations();
   loadContractPageScale();
   applyVisualTheme(state.visualTheme);
-  applySidebarExpanded(loadSidebarExpanded());
+  applySidebarCompact(loadSidebarCompact());
   state.panel = loadSavedPanelId();
   await loadRoadsideStatusState();
   renderPageHeader();
