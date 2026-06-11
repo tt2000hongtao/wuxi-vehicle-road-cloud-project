@@ -52,8 +52,8 @@ button {
   color: #eef7f6;
   overflow: hidden;
   transition:
-    width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    flex-basis 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    flex-basis 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: width, flex-basis;
 }
 
