@@ -98,6 +98,8 @@ const CONTRACT_MANUAL_CONFIRMATIONS_STORAGE_KEY = "wuxi-contract-manual-confirma
 const CONTRACT_PAGE_SCALE_STORAGE_KEY = "wuxi-contract-page-scale-v1";
 const CURRENT_PANEL_STORAGE_KEY = "wuxi-current-panel-v1";
 const SIDEBAR_COMPACT_STORAGE_KEY = "wuxi-sidebar-compact-v1";
+const SIDEBAR_WIDTH_TRANSITION_MS = 280;
+let sidebarTransitionTimer = null;
 const visualThemes = ["command", "trajectory"];
 const persistenceState = {
   backendAvailable: false,
@@ -1771,7 +1773,15 @@ function applySidebarCompact(compact = false) {
 
 function toggleSidebarCompact() {
   const compact = !document.body.classList.contains("sidebar-compact");
-  applySidebarCompact(compact);
+  if (sidebarTransitionTimer) {
+    clearTimeout(sidebarTransitionTimer);
+  }
+  document.body.classList.add("sidebar-transitioning");
+  requestAnimationFrame(() => applySidebarCompact(compact));
+  sidebarTransitionTimer = setTimeout(() => {
+    document.body.classList.remove("sidebar-transitioning");
+    sidebarTransitionTimer = null;
+  }, SIDEBAR_WIDTH_TRANSITION_MS + 80);
   saveSidebarCompact(compact);
   requestAnimationFrame(applySiteViewLayoutSettled);
 }

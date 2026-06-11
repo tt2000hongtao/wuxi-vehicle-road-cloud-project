@@ -13,19 +13,6 @@
   --green: #2e7d58;
   --shadow: 0 16px 40px rgba(29, 48, 54, 0.12);
   --sidebar-width: 149px;
-  --sidebar-inline-padding: 10px;
-}
-
-@property --sidebar-width {
-  syntax: "<length>";
-  inherits: true;
-  initial-value: 149px;
-}
-
-@property --sidebar-inline-padding {
-  syntax: "<length>";
-  inherits: true;
-  initial-value: 10px;
 }
 
 * {
@@ -51,32 +38,31 @@ button {
 }
 
 .shell {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  display: flex;
   min-height: 100vh;
-  transition:
-    --sidebar-width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    --sidebar-inline-padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    grid-template-columns 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: --sidebar-width, --sidebar-inline-padding, grid-template-columns;
 }
 
 .sidebar {
   position: sticky;
   top: 0;
+  flex: 0 0 var(--sidebar-width);
+  width: var(--sidebar-width);
   height: 100vh;
-  padding-block: 18px;
-  padding-inline: var(--sidebar-inline-padding);
+  padding: 18px 3px;
   background: #102c30;
   color: #eef7f6;
   overflow: hidden;
-  transition: padding-inline 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    flex-basis 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: width, flex-basis;
 }
 
 .brand {
   display: flex;
   gap: 8px;
   align-items: center;
+  justify-content: center;
   min-height: 57px;
   padding-bottom: 22px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
@@ -84,7 +70,8 @@ button {
 
 .brand-text {
   min-width: 0;
-  transition: opacity 0.14s ease;
+  white-space: nowrap;
+  transition: opacity 0.12s ease;
 }
 
 .brand-mark {
@@ -145,9 +132,11 @@ button {
 }
 
 .nav-item span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: opacity 0.12s ease;
 }
 
 .nav-item:hover,
@@ -188,11 +177,11 @@ body.sidebar-compact .shell {
 }
 
 body.sidebar-compact .sidebar {
-  --sidebar-inline-padding: 3px;
+  padding-right: 3px;
+  padding-left: 3px;
 }
 
 body.sidebar-compact .brand {
-  justify-content: center;
   gap: 0;
 }
 
@@ -205,6 +194,16 @@ body.sidebar-compact .nav-item span {
   pointer-events: none;
 }
 
+body.sidebar-transitioning .brand-text,
+body.sidebar-transitioning .sidebar-note,
+body.sidebar-transitioning .nav-item span {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: none;
+}
+
 body.sidebar-compact .brand-mark {
   width: 34px;
   height: 34px;
@@ -213,6 +212,15 @@ body.sidebar-compact .brand-mark {
 }
 
 body.sidebar-compact .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+
+body.sidebar-transitioning .brand {
+  gap: 0;
+}
+
+body.sidebar-transitioning .nav-item {
   justify-content: center;
   padding: 0;
 }
@@ -3347,7 +3355,6 @@ body::before {
 }
 
 .shell {
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   width: 100vw;
   min-height: 100vh;
   margin: 0;
@@ -3362,7 +3369,7 @@ body::before {
 .sidebar {
   grid-row: 1;
   height: 100vh;
-  padding: 18px 10px;
+  padding: 18px 3px;
   border-right: 1px solid rgba(60, 60, 67, 0.14);
   background: var(--sidebar);
   color: var(--ink);
@@ -4073,7 +4080,6 @@ body[data-visual-theme="command"]::before {
 }
 
 body[data-visual-theme="command"] .shell {
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
@@ -6269,7 +6275,8 @@ body.sidebar-compact:not([data-visual-theme]) .brand {
 
 body.sidebar-compact[data-visual-theme="macos"] .sidebar,
 body.sidebar-compact:not([data-visual-theme]) .sidebar {
-  --sidebar-inline-padding: 1px;
+  padding-right: 1px;
+  padding-left: 1px;
 }
 
 body.sidebar-compact .brand-mark {
