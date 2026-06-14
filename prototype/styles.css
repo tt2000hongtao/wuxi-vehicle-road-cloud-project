@@ -8446,3 +8446,426 @@ body[data-visual-theme="trajectory"] .contract-manual-table tbody tr.contract-se
   max-height: calc(100vh - 176px) !important;
   align-self: center !important;
 }
+
+/* Engineering system visual pass
+   taste-skill overrides: VISUAL_DENSITY=8, MOTION_INTENSITY=2, DESIGN_VARIANCE=5.
+   Direction: dense roadside operations cockpit, low motion, line-based grouping. */
+:root {
+  --bg: #eef2f3;
+  --ink: #142225;
+  --muted: #617174;
+  --line: rgba(49, 69, 72, 0.18);
+  --panel: #f9fbfb;
+  --panel-strong: #ffffff;
+  --accent: #0f766e;
+  --accent-strong: #0b5f59;
+  --accent-soft: rgba(15, 118, 110, 0.11);
+  --blue: #286aa6;
+  --amber: #9a6416;
+  --red: #a93d3d;
+  --green: #287957;
+  --shadow: 0 12px 28px rgba(23, 35, 38, 0.08);
+  --engine-font: "Aptos", "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --engine-mono: "SF Mono", "JetBrains Mono", "Cascadia Mono", "Roboto Mono", monospace;
+  --radius-panel: 6px;
+  --radius-control: 5px;
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(247, 249, 249, 0.96), rgba(235, 240, 241, 0.98)),
+    var(--bg);
+  font-family: var(--engine-font);
+  letter-spacing: -0.01em;
+}
+
+.shell {
+  background:
+    linear-gradient(90deg, rgba(18, 35, 38, 0.04) 0 1px, transparent 1px 100%),
+    linear-gradient(180deg, rgba(18, 35, 38, 0.035) 0 1px, transparent 1px 100%),
+    rgba(246, 248, 248, 0.82);
+  background-size: 32px 32px;
+}
+
+.sidebar {
+  background:
+    linear-gradient(180deg, #102629, #0d1f22 58%, #0a181a),
+    #102629;
+  border-right: 1px solid rgba(196, 216, 216, 0.16);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.18);
+}
+
+.brand {
+  min-height: 50px;
+  padding-bottom: 14px;
+  border-bottom-color: rgba(216, 232, 232, 0.14);
+}
+
+.brand-title {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.brand-subtitle {
+  margin-top: 2px;
+  font-size: 10px;
+  color: rgba(214, 232, 232, 0.68);
+}
+
+.brand-mark {
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px rgba(8, 32, 34, 0.12);
+}
+
+.nav {
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.nav-item {
+  height: 34px;
+  border-radius: var(--radius-control);
+  color: rgba(223, 239, 239, 0.78);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  color: #f7ffff;
+  background:
+    linear-gradient(90deg, rgba(65, 166, 155, 0.32), rgba(65, 166, 155, 0.08));
+  box-shadow: inset 2px 0 0 rgba(114, 221, 210, 0.78);
+}
+
+.nav-item::before {
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-note {
+  padding: 8px;
+  border-radius: var(--radius-panel);
+  color: rgba(214, 232, 232, 0.72);
+  font-size: 11px;
+}
+
+.workspace {
+  padding: 18px 18px 22px;
+}
+
+.topbar {
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar h1 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.page-heading {
+  gap: 12px;
+}
+
+.page-heading p,
+.topbar p,
+.section-head p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search,
+.primary-btn,
+.ghost-btn,
+.icon-btn,
+.segmented,
+.detail-tabs button,
+.contract-workspace-tabs button {
+  border-radius: var(--radius-control);
+}
+
+.search {
+  width: 300px;
+  height: 34px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.primary-btn,
+.ghost-btn,
+.icon-btn {
+  height: 34px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.primary-btn {
+  background: var(--accent);
+}
+
+.primary-btn:hover {
+  background: var(--accent-strong);
+}
+
+.ghost-btn {
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.overview-actions,
+.metric,
+.surface,
+.ops-column,
+.contract-detail,
+.site-card,
+.warehouse-card,
+.document-card,
+.import-card,
+.task-item,
+.error-item,
+.kv,
+.flow-row,
+.unmatched-panel,
+.contract-workspace-card,
+.contract-workspace-kpi {
+  border-radius: var(--radius-panel);
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.surface,
+.metric,
+.overview-actions {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 250, 0.94)),
+    var(--panel);
+}
+
+.overview-actions {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid rgba(15, 118, 110, 0.55);
+}
+
+.overview-actions h2,
+.section-head h2,
+.contract-workspace-title h3,
+.contract-workspace-table-wrap h4 {
+  font-size: 16px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metric {
+  min-height: 88px;
+  padding: 10px 12px;
+  border-left: 3px solid rgba(15, 118, 110, 0.42);
+}
+
+.metric-link {
+  min-height: 88px;
+}
+
+.metric span,
+.metric small,
+.ops-metric > span,
+.contract-workspace-kpi span {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.metric strong,
+.ops-metric strong,
+.contract-workspace-kpi strong,
+.map-asset-metrics .metric strong,
+.site-summary-card strong,
+.document-metrics strong {
+  font-family: var(--engine-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+
+.metric strong {
+  margin: 5px 0 1px;
+  font-size: 28px;
+}
+
+.dashboard-grid,
+.ops-layout,
+.document-layout,
+.warehouse-grid {
+  gap: 10px;
+}
+
+.surface {
+  padding: 12px;
+}
+
+.section-head {
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(49, 69, 72, 0.12);
+}
+
+.table-wrap {
+  border-radius: var(--radius-panel);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+table {
+  font-size: 12px;
+}
+
+thead th,
+th {
+  background: #e8eeee;
+  color: #243538;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+td {
+  color: #26393c;
+}
+
+th,
+td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom-color: rgba(49, 69, 72, 0.12);
+}
+
+tbody tr:hover td {
+  background: rgba(15, 118, 110, 0.045);
+}
+
+.segmented {
+  padding: 3px;
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.segmented button,
+.detail-tabs button {
+  height: 30px;
+  font-size: 12px;
+}
+
+.segmented button.active,
+.detail-tabs button.active {
+  color: #f8ffff;
+  background: var(--accent);
+}
+
+.mini-map,
+.map-canvas,
+#overviewMap {
+  border-radius: var(--radius-panel);
+}
+
+.site-card {
+  border-left: 3px solid rgba(15, 118, 110, 0.42);
+}
+
+.site-card:hover,
+.metric-link:hover,
+.task-item:hover,
+.document-card:hover,
+.warehouse-card:hover {
+  border-color: rgba(15, 118, 110, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.08);
+}
+
+body[data-visual-theme="command"] {
+  --bg: #061014;
+  --ink: #eaf7f8;
+  --muted: #8aa5aa;
+  --line: rgba(103, 186, 190, 0.24);
+  --panel: rgba(10, 25, 30, 0.88);
+  --panel-strong: rgba(13, 32, 38, 0.94);
+  --accent: #47c7bf;
+  --accent-strong: #7ddbd6;
+  --accent-soft: rgba(71, 199, 191, 0.15);
+}
+
+body[data-visual-theme="command"] .metric,
+body[data-visual-theme="command"] .surface,
+body[data-visual-theme="command"] .overview-actions,
+body[data-visual-theme="command"] .table-wrap,
+body[data-visual-theme="command"] .contract-workspace-card {
+  background:
+    linear-gradient(180deg, rgba(15, 34, 40, 0.92), rgba(8, 20, 25, 0.94)),
+    var(--panel);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+body[data-visual-theme="command"] thead th,
+body[data-visual-theme="command"] th {
+  background: rgba(28, 55, 63, 0.98);
+  color: #dffbff;
+}
+
+body[data-visual-theme="command"] td {
+  color: #d6eef2;
+}
+
+body[data-visual-theme="command"] tbody tr:hover td {
+  background: rgba(71, 199, 191, 0.08);
+}
+
+body[data-visual-theme="trajectory"] {
+  --bg: #111313;
+  --ink: #f1eee7;
+  --muted: #aaa69d;
+  --line: rgba(202, 198, 188, 0.22);
+  --panel: rgba(31, 34, 34, 0.84);
+  --accent: #c0b7a8;
+  --accent-strong: #ddd7cc;
+  --accent-soft: rgba(192, 183, 168, 0.14);
+}
+
+body[data-visual-theme="trajectory"] .metric,
+body[data-visual-theme="trajectory"] .surface,
+body[data-visual-theme="trajectory"] .overview-actions,
+body[data-visual-theme="trajectory"] .table-wrap,
+body[data-visual-theme="trajectory"] .contract-workspace-card {
+  background: rgba(27, 29, 29, 0.9);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+body[data-visual-theme="trajectory"] thead th,
+body[data-visual-theme="trajectory"] th {
+  background: rgba(49, 50, 49, 0.98);
+  color: #f4efe5;
+}
+
+body[data-visual-theme="trajectory"] td {
+  color: #e7e1d6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
