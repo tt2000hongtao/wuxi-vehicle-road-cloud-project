@@ -128,6 +128,60 @@
               <div class="mini-map" id="overviewMap"></div>
             </section>
           </div>
+
+          <div class="overview-cockpit-grid" aria-label="项目驾驶舱总览">
+            <section class="surface overview-main-stage">
+              <div class="section-head">
+                <div>
+                  <h2>全域点位态势</h2>
+                  <p>按区域、点位、设备和坐标异常聚合的无锡车路云建设底图</p>
+                </div>
+                <button class="ghost-btn" data-panel-link="sites">进入点位管理</button>
+              </div>
+              <div class="overview-stage-map" id="overviewStageMap"></div>
+            </section>
+
+            <aside class="overview-side-rail" aria-label="项目侧栏指标">
+              <section class="surface overview-alert-panel">
+                <div class="section-head compact-head">
+                  <h2>异常预警</h2>
+                  <button class="ghost-btn" data-panel-link="coordinates">更多</button>
+                </div>
+                <div class="overview-alert-list" id="overviewAlertList"></div>
+              </section>
+
+              <section class="surface overview-device-panel">
+                <div class="section-head compact-head">
+                  <h2>设备状态</h2>
+                  <button class="ghost-btn" data-panel-link="devices">更多</button>
+                </div>
+                <div class="overview-donut-row">
+                  <div class="overview-donut" id="overviewDeviceDonut"><span>设备</span><strong>-</strong></div>
+                  <div class="overview-status-list" id="overviewDeviceStatus"></div>
+                </div>
+              </section>
+
+              <section class="surface overview-quality-panel">
+                <div class="section-head compact-head">
+                  <h2>质量统计</h2>
+                  <button class="ghost-btn" data-panel-link="contracts">更多</button>
+                </div>
+                <div class="overview-quality-strip" id="overviewQualityStrip"></div>
+                <div class="overview-quality-chart" id="overviewQualityChart"></div>
+              </section>
+            </aside>
+
+            <section class="surface overview-bottom-table">
+              <div class="section-head">
+                <div>
+                  <h2>点位推进排期</h2>
+                  <p>优先显示异常、设备量高和建设状态靠前的点位</p>
+                </div>
+                <button class="ghost-btn" data-panel-link="sites">查看全部</button>
+              </div>
+              <div class="overview-schedule-table" id="overviewScheduleTable"></div>
+            </section>
+          </div>
         </section>
 
         <section class="panel" id="sites">

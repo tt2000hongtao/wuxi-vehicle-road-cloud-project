@@ -1835,6 +1835,7 @@ function renderMetrics() {
   }
   const unmatchedHint = $("#overviewUnmatchedCard small");
   if (unmatchedHint) unmatchedHint.textContent = `${formatNumber(data.stats.unmatchedRows)} 条待治理`;
+  renderOverviewCockpit();
 }
 
 function renderStatusProgress() {
@@ -1894,6 +1895,147 @@ function renderContractStrip() {
       `,
     )
     .join("");
+}
+
+function overviewProjectStats() {
+  const devices = allDevices();
+  const installed = devices.reduce((sum, item) => sum + (item.installedQty || 0), 0);
+  const delivered = devices.reduce((sum, item) => sum + (item.deliveredQty || 0), 0);
+  const inbound = devices.reduce((sum, item) => sum + (item.inboundQty || 0), 0);
+  const issueSites = sites.filter((site) => site.issueCount > 0 || !site.lngGcj || !site.latGcj);
+  const avgArchive = sites.length ? Math.round(sites.reduce((sum, site) => sum + (site.archiveCompleteness || 0), 0) / sites.length) : 0;
+  return { devices, installed, delivered, inbound, issueSites, avgArchive };
+}
+
+function renderOverviewCockpit() {
+  renderOverviewAlerts();
+  renderOverviewDeviceStatus();
+  renderOverviewQuality();
+  renderOverviewScheduleTable();
+  renderOverviewStageMap();
+}
+
+function renderOverviewAlerts() {
+  const holder = $("#overviewAlertList");
+  if (!holder) return;
+  const { issueSites } = overviewProjectStats();
+  const cr = state.contractRelationships;
+  const reviewStats = contractReviewStats();
+  const alerts = [
+    ...issueSites.slice(0, 3).map((site) => ({
+      level: "risk",
+      title: "点位异常",
+      desc: `${site.nodeId} ${site.name} · ${issueText(site)}`,
+      time: site.district || "区域待核",
+    })),
+    data.stats.unmatchedRows
+      ? { level: "warn", title: "未匹配设备池", desc: `${formatNumber(data.stats.unmatchedRows)} 条设备记录待治理`, time: "设备管理" }
+      : null,
+    reviewStats.pending
+      ? { level: "warn", title: "合同候选待确认", desc: `${formatNumber(reviewStats.pending)} 条设备级候选关系待确认`, time: "合同管理" }
+      : null,
+    cr.error ? { level: "risk", title: "合同关系读取失败", desc: cr.error, time: "数据链路" } : null,
+  ].filter(Boolean).slice(0, 5);
+  holder.innerHTML = alerts.length
+    ? alerts
+        .map(
+          (item) => `
+            <button class="overview-alert-item ${item.level}" type="button">
+              <i></i>
+              <span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.desc)}</small></span>
+              <em>${escapeHtml(item.time)}</em>
+            </button>
+          `,
+        )
+        .join("")
+    : `<div class="overview-empty-line">当前无高优先级异常</div>`;
+}
+
+function renderOverviewDeviceStatus() {
+  const statusHolder = $("#overviewDeviceStatus");
+  const donut = $("#overviewDeviceDonut");
+  if (!statusHolder || !donut) return;
+  const { devices, installed, delivered, inbound } = overviewProjectStats();
+  const total = Math.max(devices.reduce((sum, item) => sum + (item.qty || item.installedQty || 1), 0), data.stats.deviceRows || 0, 1);
+  const installedRate = Math.min(100, Math.round((installed / total) * 100));
+  const rows = [
+    ["已安装", installed, installedRate, "done"],
+    ["已送货", delivered, Math.min(100, Math.round((delivered / total) * 100)), "active"],
+    ["已入库", inbound, Math.min(100, Math.round((inbound / total) * 100)), "standby"],
+    ["未匹配", data.stats.unmatchedRows, Math.min(100, Math.round((data.stats.unmatchedRows / Math.max(data.stats.deviceRows + data.stats.unmatchedRows, 1)) * 100)), "risk"],
+  ];
+  donut.style.setProperty("--donut-value", `${installedRate}%`);
+  donut.innerHTML = `<span>安装率</span><strong>${installedRate}%</strong>`;
+  statusHolder.innerHTML = rows
+    .map(
+      ([label, value, rate, cls]) => `
+        <div class="overview-status-row ${cls}">
+          <span>${escapeHtml(label)}</span>
+          <b>${formatNumber(value)}</b>
+          <small>${rate}%</small>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderOverviewQuality() {
+  const strip = $("#overviewQualityStrip");
+  const chart = $("#overviewQualityChart");
+  if (!strip || !chart) return;
+  const { avgArchive, issueSites } = overviewProjectStats();
+  const matched = Math.max(data.stats.deviceRows, 0);
+  const totalDeviceRecords = Math.max(data.stats.deviceRows + data.stats.unmatchedRows, 1);
+  const matchRate = Math.round((matched / totalDeviceRecords) * 100);
+  const coordinateOkRate = Math.max(0, Math.round(((sites.length - issueSites.length) / Math.max(sites.length, 1)) * 100));
+  const reviewStats = contractReviewStats();
+  const candidateTotal = Math.max(reviewStats.pending + reviewStats.confirmed + reviewStats.rejected, 1);
+  const contractConfirmRate = Math.round((reviewStats.confirmed / candidateTotal) * 100);
+  const metrics = [
+    ["档案完整度", avgArchive, "green"],
+    ["设备匹配率", matchRate, "blue"],
+    ["坐标健康率", coordinateOkRate, "amber"],
+    ["合同确认率", contractConfirmRate, "red"],
+  ];
+  strip.innerHTML = metrics
+    .map(([label, value, tone]) => `<div class="overview-quality-kpi ${tone}"><span>${label}</span><strong>${value}%</strong></div>`)
+    .join("");
+  chart.innerHTML = metrics
+    .map(([label, value, tone]) => `<div class="overview-quality-bar ${tone}"><span>${label}</span><i style="width:${Math.max(4, value)}%"></i><b>${value}%</b></div>`)
+    .join("");
+}
+
+function renderOverviewScheduleTable() {
+  const holder = $("#overviewScheduleTable");
+  if (!holder) return;
+  const rows = [...sites]
+    .sort((a, b) => (b.issueCount || 0) - (a.issueCount || 0) || deviceRecordCount(b) - deviceRecordCount(a))
+    .slice(0, 7);
+  holder.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>NodeID</th><th>点位名称</th><th>区域</th><th>类型</th><th>设备</th><th>档案</th><th>状态</th><th>异常</th></tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (site) => `
+              <tr>
+                <td><strong>${escapeHtml(site.nodeId)}</strong></td>
+                <td>${escapeHtml(site.name)}</td>
+                <td>${escapeHtml(site.district || "-")}</td>
+                <td>${escapeHtml(site.type || "-")}</td>
+                <td>${formatNumber(deviceRecordCount(site))}</td>
+                <td><span class="overview-mini-bar"><i style="width:${Math.max(4, site.archiveCompleteness || 0)}%"></i></span>${site.archiveCompleteness || 0}%</td>
+                <td>${escapeHtml(site.status || "-")}</td>
+                <td><span class="issue-pill ${site.issueCount ? "warn" : ""}">${issueText(site)}</span></td>
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
 }
 
 function showImportPanel(type) {
@@ -2768,6 +2910,16 @@ function renderOverviewMap() {
   if (!overviewMap) return;
   renderMap(overviewMap, sites, {
     label: `全量点位预览：${formatNumber(sites.length)} 个点位`,
+    zoom: 10,
+    maxZoom: 12,
+  });
+}
+
+function renderOverviewStageMap() {
+  const overviewStageMap = $("#overviewStageMap");
+  if (!overviewStageMap) return;
+  renderMap(overviewStageMap, sites, {
+    label: `全域点位态势：${formatNumber(sites.length)} 个点位 / ${formatNumber(data.stats.deviceRows)} 条设备记录`,
     zoom: 10,
     maxZoom: 12,
   });
@@ -5299,6 +5451,10 @@ function bindEvents() {
   $("#exportAbnormalList").addEventListener("click", () => exportRoadsideExcel("list"));
   $("#exportAbnormalStats").addEventListener("click", () => exportRoadsideExcel("stats"));
   window.addEventListener("amap-ready", () => {
+    if (state.panel === "overview") {
+      renderOverviewMap();
+      renderOverviewStageMap();
+    }
     if (state.panel === "ops") renderOpsMap(roadsideRowsForSelectedDate());
     if (state.view === "map") renderSiteMap();
   });
