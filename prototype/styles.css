@@ -8869,3 +8869,37 @@ body[data-visual-theme="trajectory"] td {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Point management header overlap fix: keep view switch and metric cards in separate tracks. */
+#sites .site-head-controls {
+  position: static;
+  display: grid;
+  grid-template-columns: 252px max-content;
+  column-gap: 16px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 1288px;
+  min-height: 54px;
+  overflow: visible;
+}
+
+#sites .site-head-controls > .segmented {
+  position: static;
+  grid-column: 1;
+  justify-self: start;
+  width: 252px;
+  min-width: 252px;
+  height: 54px !important;
+  min-height: 54px;
+  max-height: 54px;
+}
+
+#sites .site-head-controls > .site-summary-cards {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(6, 170px);
+  justify-self: start;
+  width: max-content;
+  margin: 0;
+}
