@@ -2775,7 +2775,13 @@ body[data-visual-theme="trajectory"] .map-asset-filter-options label:hover {
 }
 
 .ops-trend-grid text {
-  text-anchor: end;
+  text-anchor: start;
+}
+
+.ops-trend-y-label {
+  paint-order: stroke;
+  stroke: rgba(7, 10, 11, 0.72);
+  stroke-width: 3;
 }
 
 .ops-trend-area {

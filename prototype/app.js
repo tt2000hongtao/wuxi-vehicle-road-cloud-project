@@ -99,6 +99,7 @@ const CONTRACT_PAGE_SCALE_STORAGE_KEY = "wuxi-contract-page-scale-v1";
 const CURRENT_PANEL_STORAGE_KEY = "wuxi-current-panel-v1";
 const SIDEBAR_COMPACT_STORAGE_KEY = "wuxi-sidebar-compact-v1";
 const SIDEBAR_WIDTH_TRANSITION_MS = 500;
+const OPS_TREND_LOOKBACK_DAYS = 60;
 let sidebarTransitionTimer = null;
 const visualThemes = ["command", "trajectory"];
 const persistenceState = {
@@ -4244,6 +4245,24 @@ function percent(part, total) {
   return `${((part / total) * 100).toFixed(1)}%`;
 }
 
+function parseDateKey(dateKey) {
+  const [year, month, day] = String(dateKey || "").split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const parsed = new Date(year, month - 1, day);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function shiftDateKey(dateKey, offsetDays) {
+  const date = parseDateKey(dateKey);
+  if (!date) return dateKey;
+  date.setDate(date.getDate() + offsetDays);
+  return formatDateKey(date);
+}
+
 function roadsideTypeStats(rows) {
   const enabled = rows.filter(isRoadsideEnabled);
   const groups = new Map();
@@ -4282,13 +4301,15 @@ function importedRoadsideDays() {
   days.forEach((day) => {
     if (!day.importDate || byDate.has(day.importDate)) return;
     const summary = roadsideSummary(day.rows || []);
+    const affected = summary.offline + summary.abnormal;
     byDate.set(day.importDate, {
       date: day.importDate,
       isCurrent: Boolean(day.isCurrent),
       abnormal: summary.abnormal,
       offline: summary.offline,
+      affected,
       enabled: summary.enabled,
-      ratio: percent(summary.abnormal, summary.enabled),
+      ratio: percent(affected, summary.enabled),
     });
   });
   return Array.from(byDate.values()).sort((a, b) => b.date.localeCompare(a.date));
@@ -4329,15 +4350,33 @@ function opsYearMonths() {
 }
 
 function opsTrendDays() {
-  const days = importedRoadsideDays()
-    .filter((day) => day.date <= state.opsDate)
+  const imported = importedRoadsideDays();
+  if (!imported.length) return [];
+  const importedByDate = new Map(imported.map((day) => [day.date, day]));
+  const selected = importedByDate.get(state.opsDate) || imported.find((day) => day.date <= state.opsDate) || imported[0];
+  if (!selected?.date) return [];
+  const endDate = selected.date;
+  const startDate = shiftDateKey(endDate, -OPS_TREND_LOOKBACK_DAYS);
+  const importedBeforeStart = imported
+    .filter((day) => day.date < startDate && day.date <= endDate)
     .sort((a, b) => a.date.localeCompare(b.date));
-  return days.length ? days : importedRoadsideDays().sort((a, b) => a.date.localeCompare(b.date));
+  const timeline = [];
+  for (let index = 0; index <= OPS_TREND_LOOKBACK_DAYS; index += 1) {
+    const date = shiftDateKey(startDate, index);
+    timeline.push(importedByDate.get(date) || { date, offline: 0, abnormal: 0, enabled: 0, affected: 0, hasImport: false });
+  }
+  return [...importedBeforeStart, ...timeline];
 }
 
-function smoothSvgPath(points) {
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function smoothSvgPath(points, bounds = {}) {
   if (!points.length) return "";
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  const minY = Number.isFinite(bounds.minY) ? bounds.minY : -Infinity;
+  const maxY = Number.isFinite(bounds.maxY) ? bounds.maxY : Infinity;
   const commands = [`M ${points[0].x} ${points[0].y}`];
   for (let index = 0; index < points.length - 1; index += 1) {
     const current = points[index];
@@ -4346,11 +4385,11 @@ function smoothSvgPath(points) {
     const afterNext = points[index + 2] || next;
     const cp1 = {
       x: current.x + (next.x - previous.x) / 6,
-      y: current.y + (next.y - previous.y) / 6,
+      y: clamp(current.y + (next.y - previous.y) / 6, minY, maxY),
     };
     const cp2 = {
       x: next.x - (afterNext.x - current.x) / 6,
-      y: next.y - (afterNext.y - current.y) / 6,
+      y: clamp(next.y - (afterNext.y - current.y) / 6, minY, maxY),
     };
     commands.push(`C ${cp1.x.toFixed(2)} ${cp1.y.toFixed(2)}, ${cp2.x.toFixed(2)} ${cp2.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`);
   }
@@ -4387,9 +4426,9 @@ function renderOpsTrendChart() {
     `;
     return;
   }
-  const width = 960;
+  const width = Math.max(960, Math.round(target.clientWidth || target.getBoundingClientRect().width || 960));
   const height = 320;
-  const pad = { top: 42, right: 34, bottom: 72, left: 58 };
+  const pad = { top: 42, right: 18, bottom: 72, left: 18 };
   const innerWidth = width - pad.left - pad.right;
   const innerHeight = height - pad.top - pad.bottom;
   const maxValue = Math.max(1, ...days.flatMap((day) => [day.offline, day.abnormal]));
@@ -4397,8 +4436,9 @@ function renderOpsTrendChart() {
   const yFor = (value) => pad.top + innerHeight - (value / maxValue) * innerHeight;
   const offlinePoints = days.map((day, index) => ({ x: xFor(index), y: yFor(day.offline), value: day.offline, date: day.date }));
   const abnormalPoints = days.map((day, index) => ({ x: xFor(index), y: yFor(day.abnormal), value: day.abnormal, date: day.date }));
-  const offlinePath = smoothSvgPath(offlinePoints);
-  const abnormalPath = smoothSvgPath(abnormalPoints);
+  const plotBounds = { minY: pad.top, maxY: pad.top + innerHeight };
+  const offlinePath = smoothSvgPath(offlinePoints, plotBounds);
+  const abnormalPath = smoothSvgPath(abnormalPoints, plotBounds);
   const areaPath = `${offlinePath} L ${offlinePoints.at(-1).x} ${pad.top + innerHeight} L ${offlinePoints[0].x} ${pad.top + innerHeight} Z`;
   const selectedIndex = days.findIndex((day) => day.date === state.opsDate);
   const activeIndex = selectedIndex >= 0 ? selectedIndex : days.length - 1;
@@ -4406,6 +4446,7 @@ function renderOpsTrendChart() {
   const selectedPoint = offlinePoints[activeIndex] || offlinePoints.at(-1);
   const ticks = Array.from({ length: 4 }, (_, index) => Math.round((maxValue / 3) * index));
   const hitWidth = Math.max(18, innerWidth / Math.max(1, days.length - 1));
+  const labelInterval = days.length > 45 ? 7 : days.length > 24 ? 4 : days.length > 10 ? 2 : 1;
   const labelRotation = days.length > 10 ? -36 : 0;
   target.innerHTML = `
     <div class="ops-trend-head">
@@ -4418,7 +4459,7 @@ function renderOpsTrendChart() {
         <b>${formatNumber(selected.abnormal)}</b><span>异常</span>
       </div>
     </div>
-    <svg class="ops-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="离线和异常趋势折线图">
+    <svg class="ops-trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="离线和异常趋势折线图">
       <defs>
         <linearGradient id="opsOfflineStroke" x1="0" x2="1" y1="0" y2="0">
           <stop offset="0%" stop-color="#fff8ea" />
@@ -4437,11 +4478,14 @@ function renderOpsTrendChart() {
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <clipPath id="opsTrendPlotClip">
+          <rect x="${pad.left}" y="${pad.top}" width="${innerWidth}" height="${innerHeight}" />
+        </clipPath>
       </defs>
       ${ticks
         .map((tick) => {
           const y = yFor(tick);
-          return `<g class="ops-trend-grid horizontal"><line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" /><text x="${pad.left - 12}" y="${y + 4}">${tick}</text></g>`;
+          return `<g class="ops-trend-grid horizontal"><line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" /><text class="ops-trend-y-label" x="10" y="${y + 4}">${tick}</text></g>`;
         })
         .join("")}
       ${days
@@ -4450,15 +4494,18 @@ function renderOpsTrendChart() {
           return `<g class="ops-trend-grid vertical"><line x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + innerHeight}" /></g>`;
         })
         .join("")}
-      <path class="ops-trend-area" d="${areaPath}" />
-      <path class="ops-trend-line offline" d="${offlinePath}" />
-      <path class="ops-trend-line abnormal" d="${abnormalPath}" />
+      <g clip-path="url(#opsTrendPlotClip)">
+        <path class="ops-trend-area" d="${areaPath}" />
+        <path class="ops-trend-line offline" d="${offlinePath}" />
+        <path class="ops-trend-line abnormal" d="${abnormalPath}" />
+      </g>
       <line class="ops-trend-cursor active" x1="${selectedPoint.x}" y1="${pad.top}" x2="${selectedPoint.x}" y2="${pad.top + innerHeight}" />
       <circle class="ops-trend-dot offline" cx="${selectedPoint.x}" cy="${selectedPoint.y}" r="6" />
       <text class="ops-trend-tip" x="${Math.min(width - 126, selectedPoint.x + 10)}" y="${Math.max(28, selectedPoint.y - 12)}">${formatNumber(selected.offline)} 离线</text>
       ${days
         .map((day, index) => {
-          const x = xFor(index);
+          if (index !== 0 && index !== days.length - 1 && index % labelInterval !== 0) return "";
+          const x = Math.max(24, Math.min(width - 24, xFor(index)));
           const transform = labelRotation ? ` transform="rotate(${labelRotation} ${x} ${height - 28})"` : "";
           return `<text class="ops-trend-date" x="${x}" y="${height - 28}"${transform}>${day.date.slice(5)}</text>`;
         })
@@ -4830,7 +4877,7 @@ function renderOps() {
       .map((day) => {
         if (day.empty) return `<div class="calendar-blank" aria-hidden="true"></div>`;
         return `
-          <button class="${day.date === state.opsDate ? "active" : ""} ${day.hasImport === false ? "no-data" : ""}" ${day.hasImport === false ? "" : `data-ops-date="${day.date}" draggable="true" data-ops-drag-date="${day.date}"`} data-ops-drop-date="${day.date}" title="${day.hasImport === false ? `${day.date} 无导入，可拖放导入日数据到此日期` : `${day.date} 异常 ${day.abnormal}，离线 ${day.offline}，异常占比 ${day.ratio}`}" >
+          <button class="${day.date === state.opsDate ? "active" : ""} ${day.hasImport === false ? "no-data" : ""}" ${day.hasImport === false ? "" : `data-ops-date="${day.date}" draggable="true" data-ops-drag-date="${day.date}"`} data-ops-drop-date="${day.date}" title="${day.hasImport === false ? `${day.date} 无导入，可拖放导入日数据到此日期` : `${day.date} 异常 ${day.abnormal}，离线 ${day.offline}，离线/异常占比 ${day.ratio}`}" >
             <strong class="calendar-day">${Number(day.date.slice(-2))}</strong>
             ${day.hasImport === false
               ? `<span class="calendar-muted">无导入</span><small>${day.date}</small>`
@@ -5464,6 +5511,7 @@ function bindEvents() {
     if ($("#detailDrawer")?.classList.contains("open")) sizeDrawerMapXmlPreview();
     if (state.activeSiteFilter) renderSiteFilterPopover();
     if (state.activeMapAssetFilter) renderMapAssetFilterPopover();
+    if (state.panel === "ops") renderOpsTrendChart();
   });
 }
 
